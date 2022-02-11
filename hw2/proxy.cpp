@@ -13,13 +13,13 @@
 #include <chrono>
 #include <iostream>
 #include "Parser.hpp"
-
+#include <vector>
 #define IN_PORT "12345"  // the port users will be connecting to
 #define OUT_PORT "5490"
 #define MAXDATASIZE 6000
 
 #define BACKLOG 10   // how many pending connections queue will hold
-
+using namespace std;
 void sigchld_handler(int s)
 {
     // waitpid() might overwrite errno, so we save and restore it:
@@ -39,6 +39,35 @@ void *get_in_addr(struct sockaddr *sa)
     }
 
     return &(((struct sockaddr_in6*)sa)->sin6_addr);
+}
+
+string handle_connect(int sockfd, string ip_address_server){
+    if(send(sockfd, ip_address_server.c_str(), sizeof(ip_address_server), 0)== -1){
+        perror("send");
+        exit(1);
+    }
+    vector<unsigned char> buffer(MAXDATASIZE);
+    int n_bytes = recv(sockfd, buffer.data(), buffer.size(), 0);
+    if(n_bytes != -1){
+        buffer.resize(n_bytes);
+    } else{
+        // HANDLE ERROR
+        perror("receive");
+    }
+    string s(buffer.begin(), buffer.end());
+    return s;
+}
+
+string handle_get(int sockfd, string ip_address_server){
+    
+    return NULL;
+
+}
+
+string handle_post(int sockfd, string ip_address_server){
+    
+    return NULL;
+
 }
 
 
@@ -154,8 +183,6 @@ int setUpServer() {
     printf("server: waiting for connections...\n");
 
 
-
-
 }
 
 
@@ -197,7 +224,8 @@ int main(void)
                 exit(1);
             }
             
-            Parser input = new Parser(buf_from_client);                    //parse the content from the client
+            Parser * input = new Parser(buf_from_client);                    //parse the content from the client
+        
             //print the get message from client
             std::cout << buf_from_client << " from " << s << " @ ";        //need to support time
             
@@ -206,10 +234,19 @@ int main(void)
             send_sockfd = connectToServer(str, incomingAddr);           //question: how to pass in the string as parameter and let the string point to another string
 
             //send request to the server
-            if (send(send_sockfd, "127.0.0.1", 9, 0) == -1) {
-                perror("send");
-                exit(1);
-            }
+            // if (send(send_sockfd, "127.0.0.1", 9, 0) == -1) {
+            //     perror("send");
+            //     exit(1);
+            // }
+
+            string response_content = "";
+            if(input->method == "GET"){
+                response_content = handle_get(send_sockfd, input->url);
+            } else if(input->method == "CONNECT"){
+               response_content =  handle_connect(send_sockfd, input->url);
+            } else if(input->method == "POST"){
+                response_content = handle_post(send_sockfd, input->url);
+            } 
 
             //get the request from the server
             if ((numbytes_server = recv(send_sockfd, buf_from_server, MAXDATASIZE-1, 0)) == -1) {
@@ -219,7 +256,7 @@ int main(void)
             close(send_sockfd);
 
             //send back the content to the client
-            if (send(new_fd, "127.0.0.1", 9, 0) == -1) {
+            if (send(new_fd, response_content.c_str(), response_content.size(), 0) == -1) {
                 perror("send");
                 exit(1);
             }           
