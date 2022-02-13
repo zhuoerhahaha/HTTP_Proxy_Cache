@@ -41,8 +41,8 @@ void *get_in_addr(struct sockaddr *sa)
     return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
-string handle_connect(int sockfd, string ip_address_server){
-    if(send(sockfd, ip_address_server.c_str(), sizeof(ip_address_server), 0)== -1){
+string handle_connect(int sockfd, Parser * input, string str_from_client){
+    if(send(sockfd, input->addr.c_str(), sizeof(ip_address_server), 0)== -1){
         perror("send");
         exit(1);
     }
@@ -58,13 +58,13 @@ string handle_connect(int sockfd, string ip_address_server){
     return s;
 }
 
-string handle_get(int sockfd, string ip_address_server){
+string handle_get(int sockfd, Parser * input, string str_from_client){
     
     return NULL;
 
 }
 
-string handle_post(int sockfd, string ip_address_server){
+string handle_post(int sockfd, Parser * input, string str_from_client){
     
     return NULL;
 
@@ -223,11 +223,11 @@ int main(void)
                 perror("recv");
                 exit(1);
             }
-            
-            Parser * input = new Parser(buf_from_client, "Request");                    //parse the content from the client
+            string str_from_client = buf_from_client;
+            Parser * input = new Parser(str_from_client, "Request");                    //parse the content from the client
         
             //print the get message from client
-            std::cout << buf_from_client << " from " << s << " @ ";        //need to support time
+            // std::cout << buf_from_client << " from " << s << " @ ";        //need to support time
             
             //set up socket and connect to the server
             const char * str = NULL;
@@ -241,11 +241,11 @@ int main(void)
 
             string response_content = "";
             if(input->method == "GET"){
-                response_content = handle_get(send_sockfd, input->url);
+                response_content = handle_get(send_sockfd, input, str_from_client);
             } else if(input->method == "CONNECT"){
-               response_content =  handle_connect(send_sockfd, input->url);
+               response_content =  handle_connect(send_sockfd, input, str_from_client);
             } else if(input->method == "POST"){
-                response_content = handle_post(send_sockfd, input->url);
+                response_content = handle_post(send_sockfd, input, str_from_client);
             } 
 
             //get the request from the server
