@@ -41,8 +41,8 @@ void *get_in_addr(struct sockaddr *sa)
     return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
-string handle_connect(int sockfd, Parser * input, string str_from_client){
-    if(send(sockfd, input->addr.c_str(), sizeof(ip_address_server), 0)== -1){
+string handle_connect(int sockfd, Parser * input, string content_from_client){
+    if(send(sockfd, content_from_client.c_str(), sizeof(content_from_client), 0)== -1){
         perror("send");
         exit(1);
     }
@@ -72,7 +72,7 @@ string handle_post(int sockfd, Parser * input, string str_from_client){
 
 
 //connect to the server
-int connectToServer(const char * address, char * incomingAddr) {
+int connectToServer(const char * address) {
     int sockfd, numbytes;  
     char buf[MAXDATASIZE];
     struct addrinfo hints, *servinfo, *p;
@@ -110,9 +110,7 @@ int connectToServer(const char * address, char * incomingAddr) {
         return 2;
     }
 
-    inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr), s, sizeof s);
-    // incomingAddr = s;                                                                       //point incomingAddr to s, how??????
-    // printf("client: connecting to %s\n", s);
+    inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr), s, sizeof s);              //could've been ignored
 
     freeaddrinfo(servinfo); // all done with this structure
 
@@ -223,15 +221,14 @@ int main(void)
                 perror("recv");
                 exit(1);
             }
-            string str_from_client = buf_from_client;
-            Parser * input = new Parser(str_from_client, "Request");                    //parse the content from the client
+
+            //parse the content from the client
+            string content_from_client = buf_from_client;
+            Parser * input = new Parser(content_from_client, "Request");                    
         
-            //print the get message from client
-            // std::cout << buf_from_client << " from " << s << " @ ";        //need to support time
             
             //set up socket and connect to the server
-            const char * str = NULL;
-            send_sockfd = connectToServer(str, incomingAddr);           //question: how to pass in the string as parameter and let the string point to another string
+            send_sockfd = connectToServer(input->host.c_str());         
 
             //send request to the server
             // if (send(send_sockfd, "127.0.0.1", 9, 0) == -1) {
@@ -241,18 +238,14 @@ int main(void)
 
             string response_content = "";
             if(input->method == "GET"){
-                response_content = handle_get(send_sockfd, input, str_from_client);
+                response_content = handle_get(send_sockfd, input, content_from_client);
             } else if(input->method == "CONNECT"){
-               response_content =  handle_connect(send_sockfd, input, str_from_client);
+               response_content =  handle_connect(send_sockfd, input, content_from_client);
             } else if(input->method == "POST"){
-                response_content = handle_post(send_sockfd, input, str_from_client);
+                response_content = handle_post(send_sockfd, input, content_from_client);
             } 
 
-            //get the request from the server
-            if ((numbytes_server = recv(send_sockfd, buf_from_server, MAXDATASIZE-1, 0)) == -1) {
-                perror("recv");
-                exit(1);
-            }
+            //close sockfd with server
             close(send_sockfd);
 
             //send back the content to the client
@@ -269,3 +262,17 @@ int main(void)
 
     return 0;
 }
+
+
+//how to set up the cache(using hashmap<url, pair<response, max_age> >)
+//how to handle multi threading
+
+
+// // how to record time(to check if it is fresh/expired)
+
+
+
+
+
+
+

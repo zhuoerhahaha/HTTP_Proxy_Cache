@@ -1,10 +1,13 @@
 CC=g++
-CFLAGS=-Wall -g
+CFLAGS=-O3 
 
-all: proxy
+all: client proxy
 
-proxy: proxy.cpp
+client: client.cpp
+	$(CC) $(CFLAGS) -o $@ client.cpp
+
+proxy: proxy.cpp Parser.hpp
 	$(CC) $(CFLAGS) -o $@ proxy.cpp
 
 clean:
-	rm -f proxy *.o 
+	rm -f client server proxy *.o 

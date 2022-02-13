@@ -13,7 +13,7 @@
 
 #define PORT "12345" // the port client will be connecting to 
 
-#define MAXDATASIZE 100 // max number of bytes we can get at once 
+#define MAXDATASIZE 1000 // max number of bytes we can get at once 
 
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa)
@@ -73,11 +73,6 @@ int main(int argc, char *argv[])
     printf("client: connecting to %s\n", s);
 
     freeaddrinfo(servinfo); // all done with this structure
-
-    if (send(sockfd, "127.0.0.1", 9, 0) == -1) {
-        perror("send");
-        exit(1);
-    }
 
     if (send(sockfd, "www.google.com", 13, 0) == -1) {
       perror("send");
