@@ -42,6 +42,8 @@ void *get_in_addr(struct sockaddr *sa)
 }
 
 string handle_connect(int sockfd, Parser * input, string content_from_client){
+
+
     if(send(sockfd, content_from_client.c_str(), sizeof(content_from_client), 0)== -1){
         perror("send");
         exit(1);
@@ -55,6 +57,7 @@ string handle_connect(int sockfd, Parser * input, string content_from_client){
         perror("receive");
     }
     string s(buffer.begin(), buffer.end());
+
     return s;
 }
 
@@ -83,25 +86,29 @@ int connectToServer(const char * address) {
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
 
-    if ((rv = getaddrinfo(address, OUT_PORT, &hints, &servinfo)) != 0) {
+
+    if ((rv = getaddrinfo("google.com", OUT_PORT, &hints, &servinfo)) != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
         return 1;
     }
 
+
     // loop through all the results and connect to the first we can
     for(p = servinfo; p != NULL; p = p->ai_next) {
+
         if ((sockfd = socket(p->ai_family, p->ai_socktype,
                 p->ai_protocol)) == -1) {
             perror("client: socket");
             continue;
         }
 
+        
         if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
             close(sockfd);
             perror("client: connect");
+
             continue;
         }
-
         break;
     }
 
@@ -109,6 +116,7 @@ int connectToServer(const char * address) {
         fprintf(stderr, "client: failed to connect\n");
         return 2;
     }
+            
 
     inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr), s, sizeof s);              //could've been ignored
 
@@ -180,6 +188,7 @@ int setUpServer() {
 
     printf("server: waiting for connections...\n");
 
+    return sockfd;
 
 }
 
@@ -191,10 +200,9 @@ int main(void)
     struct sockaddr_storage their_addr; // connector's address information
     socklen_t sin_size;
     char s[INET6_ADDRSTRLEN];
-    
+   
 
     listen_sockfd = setUpServer();
-
     while(1) {  // main accept() loop
         sin_size = sizeof their_addr;
         new_fd = accept(listen_sockfd, (struct sockaddr *)&their_addr, &sin_size);
@@ -224,17 +232,12 @@ int main(void)
 
             //parse the content from the client
             string content_from_client = buf_from_client;
-            Parser * input = new Parser(content_from_client, "Request");                    
-        
-            
+            Parser * input = new Parser();             
+            input->setArguments(content_from_client, "Request");       
+
             //set up socket and connect to the server
             send_sockfd = connectToServer(input->host.c_str());         
 
-            //send request to the server
-            // if (send(send_sockfd, "127.0.0.1", 9, 0) == -1) {
-            //     perror("send");
-            //     exit(1);
-            // }
 
             string response_content = "";
             if(input->method == "GET"){
@@ -267,8 +270,8 @@ int main(void)
 //how to set up the cache(using hashmap<url, pair<response, max_age> >)
 //how to handle multi threading
 
+//stuck on from 239 connectToServer at 97. "google.com" can open the socket but cannot connect, else could not build the socket.
 
-// // how to record time(to check if it is fresh/expired)
 
 
 

@@ -4,25 +4,26 @@
 #include <string>
 #include <map>
 
+using namespace std;
 class Parser {
     public:
-        std::string addr;           
-        std::string url;            
-        std::string http_version;
-        std::string max_age;
-        std::string content;
-        std::string method;
-        std::string etag;
-        std::string last_modified;
-        std::string status_code;
-        std::string host;
-        std::string port_number;
-        std::string no_cache; // Request
-        std::string no_store; // Request
-        std::string max_stale; // Request
-        std::string min_fresh; // Request
-        std::string must_revalidate; // Response
-        std::string max_age; // Response
+        string addr;           
+        string url;            
+        string http_version;
+        string content;
+        string method;
+        string etag;
+        string last_modified;
+        string status_code;
+        string host;
+        string port_number;
+        bool no_cache; // Request
+        bool no_store; // Request
+        string max_stale; // Request
+        string min_fresh; // Request
+        string must_revalidate; // Response
+        string max_age; // Response
         
-        Parser(string input, string type);
+        Parser();
+        void setArguments(string input, string type);
 };

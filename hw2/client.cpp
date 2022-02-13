@@ -8,6 +8,8 @@
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <string>
+#include <iostream>
 
 #include <arpa/inet.h>
 
@@ -33,10 +35,12 @@ int main(int argc, char *argv[])
     int rv;
     char s[INET6_ADDRSTRLEN];
 
-    if (argc != 2) {
-        fprintf(stderr,"usage: client hostname\n");
-        exit(1);
-    }
+    std::string test_input = "CONNECT google.com HTTP/1.1\nHost: google.com\nProxy-Authorization: basic aGVsbG86d29ybGQ=";
+
+    // if (argc != 2) {
+    //     fprintf(stderr,"usage: client hostname\n");
+    //     exit(1);
+    // }
 
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_UNSPEC;
@@ -74,10 +78,12 @@ int main(int argc, char *argv[])
 
     freeaddrinfo(servinfo); // all done with this structure
 
-    if (send(sockfd, "www.google.com", 13, 0) == -1) {
+    if (send(sockfd, test_input.c_str(), test_input.size(), 0) == -1) {
       perror("send");
     }
-
+    //TEST
+    std::cout << "back from sending";
+    
     if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
         perror("recv");
         exit(1);

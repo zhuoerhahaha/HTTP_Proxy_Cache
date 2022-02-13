@@ -18,13 +18,13 @@ vector<string> split(const string &s, char delim) {
     return elems;
 }
 
-void request_helper(string input){
+// void request_helper(string input){
 
 
-}
+// }
 
 
-Parser::Parser(string input, string type) {
+Parser::Parser() {
     string addr = "";           
     string url = "";            
     string http_version = "";
@@ -42,6 +42,11 @@ Parser::Parser(string input, string type) {
     string min_fresh = ""; // Request
     bool must_revalidate = false; // Response
 
+   
+}
+
+
+void Parser::setArguments(string input, string type) {
     if(type == "Request"){
         // basic paramters
         map<string, string> m;
@@ -137,86 +142,5 @@ Parser::Parser(string input, string type) {
             must_revalidate = true;
         }           
     }
-
 }
 
-// Parser::Parser(string input, string type) {
-//     string addr = "";           
-//     string url = "";            
-//     string http_version = "";
-//     string content = "";
-//     string method = "";
-//     string etag = "";
-//     string last_modified = "";
-//     string status_code = "";
-//     string host = "";
-//     string port_number = "";
-//     // Below are from TA
-//     string no_cache = ""; // Request
-//     string no_store = ""; // Request
-//     string max_stale = ""; // Request
-//     string min_fresh = ""; // Request
-//     string must_revalidate = ""; // Response
-//     string max_age = ""; // Response
-    
-
-
-//     if(type == "Request"){
-//         // basic paramters
-//         map<string, string> m;
-//         string header;
-//         string::size_type index;
-//         size_t start = 0;
-//         size_t end = 0;
-//         // parse the first line (method, url, http_version)
-//         end = input.find("\n");
-//         header = input.substr(start, end);
-//         vector<string> headerVec = split(header, ' ');
-//         method = headerVec[0];
-//         url = headerVec[1];
-//         http_version = headerVec[2];
-//         // parse Host
-//         start = input.find("Host");
-//         start = start + 6;
-//         end = input.find("\n", start);
-//         host = input.substr(start, end);
-//         // parse max-age
-//         start = input.find("max-age");
-//         start = start + 8;
-//         if(start != string::npos){
-//             end = input.find_first_of(" \n", start);
-//             max_age = input.substr(start, end);
-//         }
-        
-
-//     }else if(type == "Response"){
-//         map<string, string> m;
-//         string header;
-//         string::size_type index;
-//         size_t start = 0;
-//         size_t end = 0;
-//         // parse the first line(http_version, status_code)
-//         end = input.find("\n");
-//         header = input.substr(start, end);
-//         vector<string> headerVec = split(header, ' ');
-//         http_version = headerVec[0];
-//         status_code = headerVec[1];
-//         // parse Etag
-//         start = input.find("Etag");
-//         start = start + 6;
-//         end = input.find("\n", start);
-//         etag = input.substr(start, end);
-//         // parse Last-Modified
-//         start = input.find("Last-Modified");
-//         start = start + 15;
-//         end = input.find("\n", start);
-//         last_modified = input.substr(start, end);
-//         // parse max-age
-//         start = input.find("max-age");
-//         start = start + 8;
-//         if(start != string::npos){
-//             end = input.find_first_of(" \n", start);
-//             max_age = input.substr(start, end);
-//         }
-//     }
-// }
