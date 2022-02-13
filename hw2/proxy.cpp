@@ -224,7 +224,7 @@ int main(void)
                 exit(1);
             }
             
-            Parser * input = new Parser(buf_from_client);                    //parse the content from the client
+            Parser * input = new Parser(buf_from_client, "Request");                    //parse the content from the client
         
             //print the get message from client
             std::cout << buf_from_client << " from " << s << " @ ";        //need to support time

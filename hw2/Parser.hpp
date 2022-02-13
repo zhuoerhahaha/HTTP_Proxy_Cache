@@ -6,14 +6,16 @@
 
 class Parser {
     public:
-        std::string addr;           //client address
-        std::string port;           //client port number
-        std::string method;         //client method
-        std::string log_info;       //
-        std::string send;
-        std::string input;
-        std::string line;
-        std::string url;            //get url
-
-        Parser(string input);
+        std::string addr;           
+        std::string url;            
+        std::string http_version;
+        std::string max_age;
+        std::string content;
+        std::string method;
+        std::string etag;
+        std::string last_modified;
+        std::string status_code;
+        std::string host;
+        std::string port_number;
+        Parser(string input, string type);
 };
