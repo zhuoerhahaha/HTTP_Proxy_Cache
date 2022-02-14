@@ -18,12 +18,6 @@ vector<string> split(const string &s, char delim) {
     return elems;
 }
 
-// void request_helper(string input){
-
-
-// }
-
-
 Parser::Parser() {
     string addr = "";           
     string url = "";            
@@ -65,7 +59,15 @@ void Parser::setArguments(string input, string type) {
         if(start != string::npos) {
             start = start + 6;
             end = input.find("\n", start);
-            host = input.substr(start, (end - start));
+            int col = input.find(":", start);
+            if (col != string::npos) {
+                host = input.substr(start, (col - start));
+                col++;
+                port_number = input.substr(col, (end - col));
+            }
+            else {
+                host = input.substr(start, (end - start));
+            }
         }
         // parse max-age
         start = input.find("max-age");
@@ -142,5 +144,6 @@ void Parser::setArguments(string input, string type) {
             must_revalidate = true;
         }           
     }
+
 }
 

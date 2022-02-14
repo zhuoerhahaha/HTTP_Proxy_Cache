@@ -14,8 +14,9 @@
 #include <iostream>
 #include "Parser.hpp"
 #include <vector>
+#include<string.h>
 #define IN_PORT "12345"  // the port users will be connecting to
-#define OUT_PORT "5490"
+// #define OUT_PORT "3090"
 #define MAXDATASIZE 6000
 
 #define BACKLOG 10   // how many pending connections queue will hold
@@ -41,24 +42,42 @@ void *get_in_addr(struct sockaddr *sa)
     return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
-string handle_connect(int sockfd, Parser * input, string content_from_client){
-
-
-    if(send(sockfd, content_from_client.c_str(), sizeof(content_from_client), 0)== -1){
+string handle_connect(int server_fd, int client_fd, Parser * input, string content_from_client){
+    // //test
+    char buf[MAXDATASIZE];
+    if(send(server_fd, content_from_client.c_str(), content_from_client.size(), 0)== -1){
         perror("send");
         exit(1);
     }
-    vector<unsigned char> buffer(MAXDATASIZE);
-    int n_bytes = recv(sockfd, buffer.data(), buffer.size(), 0);
-    if(n_bytes != -1){
-        buffer.resize(n_bytes);
-    } else{
-        // HANDLE ERROR
-        perror("receive");
-    }
-    string s(buffer.begin(), buffer.end());
 
+    // vector<unsigned char> buffer(MAXDATASIZE);
+    // int n_bytes = recv(sockfd, buffer.data(), buffer.size(), 0);
+    int n_bytes;
+    if ((n_bytes = recv(server_fd, buf, MAXDATASIZE-1, 0)) == -1) {
+        perror("recv");
+        exit(1);
+    }
+    // if(n_bytes != -1){
+    //     // buffer.resize(n_bytes);
+    //     buf.resize(n_bytes);
+    // } else{
+    //     // HANDLE ERROR
+    //     perror("receive");
+    // }
+    // string s(buffer.begin(), buffer.end());
+    string s(buf);
+    cout << endl << n_bytes << s << endl;
     return s;
+
+
+
+
+
+
+
+    // fd_set master;
+    // fd_set read_fds;
+    // int fdmax;
 }
 
 string handle_get(int sockfd, Parser * input, string str_from_client){
@@ -75,54 +94,48 @@ string handle_post(int sockfd, Parser * input, string str_from_client){
 
 
 //connect to the server
-int connectToServer(const char * address) {
-    int sockfd, numbytes;  
-    char buf[MAXDATASIZE];
-    struct addrinfo hints, *servinfo, *p;
-    int rv;
-    char s[INET6_ADDRSTRLEN];
-
-    memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_UNSPEC;
-    hints.ai_socktype = SOCK_STREAM;
+int connectToServer(const char * host, const char * port) {
+    int status;
+    int socket_fd;
+    struct addrinfo host_info;
+    struct addrinfo *host_info_list;
+    //cast port to not null-terminated
+    char *port_num = (char *)malloc(strlen(port) - 1);
+    memcpy(port_num, port, strlen(port) - 1);
 
 
-    if ((rv = getaddrinfo("google.com", OUT_PORT, &hints, &servinfo)) != 0) {
-        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-        return 1;
-    }
+    memset(&host_info, 0, sizeof(host_info));
+    host_info.ai_family   = AF_UNSPEC;
+    host_info.ai_socktype = SOCK_STREAM;
+    status = getaddrinfo(host, port_num, &host_info, &host_info_list);
+    if (status != 0) {
+        cerr << "Error: cannot get address info for host" << endl;
+        cerr << "  (" << host << "," << port_num << ")" << endl;
+        return -1;
+    } //if
 
+    socket_fd = socket(host_info_list->ai_family, 
+                host_info_list->ai_socktype, 
+                host_info_list->ai_protocol);
+    if (socket_fd == -1) {
+        cerr << "Error: cannot create socket" << endl;
+        cerr << "  (" << host << "," << port_num << ")" << endl;
+        return -1;
+    } //if
+    
+    // cout << "Connecting to " << host << " on port " << port_num << "..." << endl;
+    
+    status = connect(socket_fd, host_info_list->ai_addr, host_info_list->ai_addrlen);
+    if (status == -1) {
+        cerr << "Error: cannot connect to socket" << endl;
+        cerr << "  (" << host << "," << port_num << ")" << endl;
+        return -1;
+    } //if
+         
 
-    // loop through all the results and connect to the first we can
-    for(p = servinfo; p != NULL; p = p->ai_next) {
+    freeaddrinfo(host_info_list); // all done with this structure
 
-        if ((sockfd = socket(p->ai_family, p->ai_socktype,
-                p->ai_protocol)) == -1) {
-            perror("client: socket");
-            continue;
-        }
-
-        
-        if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-            close(sockfd);
-            perror("client: connect");
-
-            continue;
-        }
-        break;
-    }
-
-    if (p == NULL) {
-        fprintf(stderr, "client: failed to connect\n");
-        return 2;
-    }
-            
-
-    inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr), s, sizeof s);              //could've been ignored
-
-    freeaddrinfo(servinfo); // all done with this structure
-
-    return sockfd;
+    return socket_fd;
 }
 
 //set up as a server
@@ -200,9 +213,9 @@ int main(void)
     struct sockaddr_storage their_addr; // connector's address information
     socklen_t sin_size;
     char s[INET6_ADDRSTRLEN];
-   
 
     listen_sockfd = setUpServer();
+    
     while(1) {  // main accept() loop
         sin_size = sizeof their_addr;
         new_fd = accept(listen_sockfd, (struct sockaddr *)&their_addr, &sin_size);
@@ -229,21 +242,23 @@ int main(void)
                 perror("recv");
                 exit(1);
             }
-
+            
             //parse the content from the client
             string content_from_client = buf_from_client;
-            Parser * input = new Parser();             
+
+            Parser * input = new Parser();     
+
             input->setArguments(content_from_client, "Request");       
 
             //set up socket and connect to the server
-            send_sockfd = connectToServer(input->host.c_str());         
+            send_sockfd = connectToServer(input->host.c_str(), input->port_number.c_str());         
 
 
             string response_content = "";
             if(input->method == "GET"){
                 response_content = handle_get(send_sockfd, input, content_from_client);
             } else if(input->method == "CONNECT"){
-               response_content =  handle_connect(send_sockfd, input, content_from_client);
+               response_content =  handle_connect(send_sockfd, new_fd, input, content_from_client);
             } else if(input->method == "POST"){
                 response_content = handle_post(send_sockfd, input, content_from_client);
             } 

@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
     int rv;
     char s[INET6_ADDRSTRLEN];
 
-    std::string test_input = "CONNECT google.com HTTP/1.1\nHost: google.com\nProxy-Authorization: basic aGVsbG86d29ybGQ=";
+
 
     // if (argc != 2) {
     //     fprintf(stderr,"usage: client hostname\n");
@@ -73,6 +73,8 @@ int main(int argc, char *argv[])
         return 2;
     }
 
+    std::string test_input = "CONNECT google.com HTTP/1.1\nHost: google.com\nProxy-Authorization: basic aGVsbG86d29ybGQ=";
+    
     inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr), s, sizeof s);
     printf("client: connecting to %s\n", s);
 
