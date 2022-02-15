@@ -76,6 +76,41 @@ string RECEIVE(int server_fd) {
     //receive the content from server
     if(response->chuncked) {
         //deal with chunked data        
+        while(true){
+            string currentLine = "";
+            int data_length = 0;
+            while(true){
+                char currBuff[MAXDATASIZE];
+                int numbytes;
+                if ((numbytes = recv(server_fd, currBuff, MAXDATASIZE - 1, 0)) == -1) {
+                    perror("recv");
+                    exit(1);
+                }
+                currentLine.append(currBuff);
+                int end = currentLine.find("\r\n");
+                if(end != string::npos){
+                    if(end == 0){
+                        data_length = -1;
+                        break;
+                    }
+                    string data_length_str = currentLine.substr(0, end);
+                    data_length = stoul(data_length_str, nullptr, 16);
+                    break;
+                }
+            }
+            char currBuff[MAXDATASIZE];
+            int numbytes;
+            if(data_length == 0){ // when meeting the ending of the file, data_length would be like 0
+                break;
+            } else if(data_length == -1){ // when the new line contains only "/r/n", data_length would be like -1
+                continue;
+            }
+            if ((numbytes = recv(server_fd, currBuff, data_length, 0)) == -1) {
+                    perror("recv");
+                    exit(1);
+            }
+            result.append(currBuff);
+        }
     }
     else {
         //deal with content_length-specified data
@@ -95,7 +130,7 @@ string RECEIVE(int server_fd) {
         }
 
     }
-
+    cout << "Result: "<< result << endl;
     return result;
 }
 
@@ -441,7 +476,7 @@ int main(void)
             Parser * input = new Parser();     
 
             input->setArguments(content_from_client, "Request");       
-
+            cout<<"Content_From_Client " <<content_from_client <<endl; 
             //set up socket and connect to the server
             send_sockfd = connectToServer(input->host.c_str(), input->port_number.c_str());         
 
