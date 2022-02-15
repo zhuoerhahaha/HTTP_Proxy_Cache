@@ -16,7 +16,6 @@
 #include <vector>
 #include<string.h>
 #define IN_PORT "12345"  // the port users will be connecting to
-// #define OUT_PORT "3090"
 #define MAXDATASIZE 6000
 
 #define BACKLOG 10   // how many pending connections queue will hold
@@ -52,47 +51,155 @@ struct tm * getCurrentTime() {
 }
 
 
-//erronous!!!
-void handle_connect(int server_fd, int client_fd, Parser * input, string content_from_client){
-    // //test
-    send(client_fd, "HTTP/1.1 200 OK\r\n\r\n", 19, 0);
-    char buf[MAXDATASIZE];
-    int i = 0;
+
+string RECEIVE(int server_fd) {
+    string result;
+    string header;
+    string content;
+    Parser *response = new Parser();
+    //receive the header from server
     while(true) {
-        cout << i << endl;
-        i++;
-        int n_bytes;
-        //test--listen to client
-        if ((n_bytes = recv(client_fd, buf, MAXDATASIZE-1, 0)) <= 1) {
+        char currBuff[MAXDATASIZE];
+        int numbytes;
+        if ((numbytes = recv(server_fd, currBuff, MAXDATASIZE-1, 0)) == -1) {
             perror("recv");
             exit(1);
+        }
+        string currStr(currBuff);
+        header.append(currStr);
+        if(header.find("\r\n\r\n") != string::npos) {
+            response->setArguments(header, "Response");
+            result.append(header);
+            break;
+        }
+    }
+    //receive the content from server
+    if(response->chuncked) {
+        //deal with chunked data        
+    }
+    else {
+        //deal with content_length-specified data
+        while(true) {
+            char currBuff[MAXDATASIZE];
+            int numbytes;
+            if ((numbytes = recv(server_fd, currBuff, MAXDATASIZE-1, 0)) == -1) {
+                perror("recv");
+                exit(1);
+            }
+            string currStr(currBuff);
+            content.append(currStr);
+            if(content.length() >= stoi(response->content_length)) {
+                result.append(content);
+                break;
+            }
         }
 
-        cout << "Client says:" << buf[0] << " num bytes " << n_bytes << endl;
-        //test--send to server
-        // if(send(server_fd, content_from_client.c_str(), content_from_client.size(), 0)== -1){
-        //     perror("send");
-        //     exit(1);
-        // }
-        if(send(server_fd, buf, sizeof(buf), 0)== -1){
-            perror("send");
-            exit(1);
-        }
-        // vector<unsigned char> buffer(MAXDATASIZE);
-        // int n_bytes = recv(sockfd, buffer.data(), buffer.size(), 0);
-        //test--listen to server
-        if ((n_bytes = recv(server_fd, buf, MAXDATASIZE-1, 0)) <= 1) {
-            perror("recv");
-            exit(1);
-        }
-        cout << "Server says:" << buf << " num bytes " << n_bytes << endl;
-        //test-send to client
-        if(send(client_fd, buf, sizeof(buf), 0)== -1){
-            perror("send");
-            exit(1);
-        }      
-        memset(buf, NULL, MAXDATASIZE - 1);  
     }
+
+    return result;
+}
+
+
+string appendHeader(string request, string mode, string strToAdd) {
+    string result = "";
+    int headerSection = request.find("\r\n\r\n");
+    if(mode == "etags") {
+        result.append(request.substr(0, headerSection));
+        result.append("if-None-Match: " + strToAdd + "\n");
+    }
+    else if(mode == "last_modified") {
+        result.append(request.substr(0, headerSection));
+        result.append("if-Unmodified-Since: " + strToAdd + "\n");
+    }
+    result.append(request.substr(headerSection));
+    return result;
+}
+
+//erronous!!!
+void handle_connect(int server_fd, int client_fd, Parser * input, string content_from_client){
+    string str = "HTTP/1.1 200 OK\r\n\r\n";
+
+    send(client_fd, str.c_str(), str.size(), MSG_NOSIGNAL);
+    fd_set master;    // master file descriptor list
+    fd_set temp_fds;  // temp file descriptor list for select()
+    int fdmax;        // maximum file descriptor number
+
+    FD_ZERO(&master);    // clear the master and temp sets
+    FD_SET(client_fd, &master);
+    FD_SET(server_fd, &master);
+    
+    //keep track of the biggest file descriptor
+    fdmax = server_fd > client_fd ? server_fd : client_fd;
+    int i = 0;
+    while(true) {
+        // add the client socket to the master set
+        temp_fds = master;  //copy it
+        if(select(fdmax+1, &temp_fds, NULL, NULL, NULL) == -1) {
+            perror("select");
+            exit(4);
+        }
+        // run through the existing connections looking for data to read
+        int len;
+        for(int i = 0; i <= fdmax; i++) {
+            char buff[MAXDATASIZE];
+            if (FD_ISSET(i, &temp_fds)) {        //find the match
+                len = recv(i, buff, sizeof(buff), 0);
+                if (len <= 0) {
+                    return;
+                }
+                else {
+                    if (send(i, buff, len, 0) <= 0) {
+                        return;
+                    }
+                }
+            }
+            // cout << buff << endl;
+        }       
+    }
+
+
+
+
+
+    // //test
+    // send(client_fd, "HTTP/1.1 200 OK\r\n\r\n", 19, 0);
+    // char buf[MAXDATASIZE];
+    // int i = 0;
+    // while(true) {
+    //     cout << i << endl;
+    //     i++;
+    //     int n_bytes;
+    //     //test--listen to client
+    //     if ((n_bytes = recv(client_fd, buf, MAXDATASIZE-1, 0)) <= 1) {
+    //         perror("recv");
+    //         exit(1);
+    //     }
+
+    //     cout << "Client says:" << buf[0] << " num bytes " << n_bytes << endl;
+    //     //test--send to server
+    //     // if(send(server_fd, content_from_client.c_str(), content_from_client.size(), 0)== -1){
+    //     //     perror("send");
+    //     //     exit(1);
+    //     // }
+    //     if(send(server_fd, buf, sizeof(buf), 0)== -1){
+    //         perror("send");
+    //         exit(1);
+    //     }
+    //     // vector<unsigned char> buffer(MAXDATASIZE);
+    //     // int n_bytes = recv(sockfd, buffer.data(), buffer.size(), 0);
+    //     //test--listen to server
+    //     if ((n_bytes = recv(server_fd, buf, MAXDATASIZE-1, 0)) <= 1) {
+    //         perror("recv");
+    //         exit(1);
+    //     }
+    //     cout << "Server says:" << buf << " num bytes " << n_bytes << endl;
+    //     //test-send to client
+    //     if(send(client_fd, buf, sizeof(buf), 0)== -1){
+    //         perror("send");
+    //         exit(1);
+    //     }      
+    //     memset(buf, NULL, MAXDATASIZE - 1);  
+    // }
     
     // if(n_bytes != -1){
     //     // buffer.resize(n_bytes);
@@ -108,68 +215,25 @@ void handle_connect(int server_fd, int client_fd, Parser * input, string content
 
 
 
-
-
-
-    // send(client_fd, "HTTP/1.1 200 OK\r\n\r\n", 19, 0);
-    // fd_set master;    // master file descriptor list
-    // fd_set temp_fds;  // temp file descriptor list for select()
-    // int fdmax;        // maximum file descriptor number
-
-    // FD_ZERO(&master);    // clear the master and temp sets
-    // FD_SET(client_fd, &master);
-    // FD_SET(server_fd, &master);
     
-    // //keep track of the biggest file descriptor
-    // fdmax = server_fd > client_fd ? server_fd : client_fd;
-
-    // while(true) {
-    //     // add the client socket to the master set
-    //     temp_fds = master;  //copy it
-    //     if(select(fdmax+1, &temp_fds, NULL, NULL, NULL) == -1) {
-    //         perror("select");
-    //         exit(4);
-    //     }
-    //     // run through the existing connections looking for data to read
-    //     int len;
-    //     for(int i = 0; i <= fdmax; i++) {
-    //         char buff[MAXDATASIZE];
-    //         if (FD_ISSET(i, &temp_fds)) {
-    //             len = recv(i, buff, sizeof(buff), 0);
-    //             if (len <= 0) {
-    //                 return;
-    //             }
-    //             else {
-    //                 if (send(i, buff, len, 0) <= 0) {
-    //                     return;
-    //                 }
-    //             }
-    //         }
-    //         cout << buff << endl;
-    //     }       
-    // }
-
 
 
 }
 
-string handle_get(int server_fd, int client_fd, Parser * input, string str_from_client, map<string, pair<string, time_t>> cache){
-    string url = input->url;
+string handle_get(int server_fd, int client_fd, Parser * request, string str_from_client, map<string, pair<string, time_t>> cache){
+    string url = request->url;
     if(cache.count(url) == 0) {
         //no such url in map, need to get from server and store the response into cache
-        char buffFromServer[MAXDATASIZE];
+        string serverString;
         int numbytes;
         //send the data to server
         if (send(server_fd, str_from_client.c_str(), str_from_client.size(), 0) == -1) {
             perror("send");
         }
-        //receive from server
-        if ((numbytes = recv(server_fd, buffFromServer, MAXDATASIZE-1, 0)) == -1) {
-            perror("recv");
-            exit(1);
-        }
+        //receive from server, need to use a seperate function to get the response
+        serverString = RECEIVE(server_fd);
         Parser * response = new Parser();
-        string serverString(buffFromServer);
+
         response->setArguments(serverString, "Response");
         // time_t current_seconds;
         // current_seconds = time (NULL);
@@ -187,8 +251,22 @@ string handle_get(int server_fd, int client_fd, Parser * input, string str_from_
         pair<string, time_t> current_responseTime_pair = cache.find(url)->second;
         
         if(difftime(mktime(current_time), current_responseTime_pair.second) > 0) {
-            //non expired, need to check if revalidation needed
-            cout << "";
+            //fresh, but need to check if revalidation needed
+
+            //append etag/last_modified to the tail of the header
+            if(request->etag != "") {
+                str_from_client = appendHeader(current_responseTime_pair.first, "etag", request->etag);
+            }
+            if(request->last_modified != "") {
+                str_from_client = appendHeader(current_responseTime_pair.first, "last_modified", request->last_modified);
+            }
+            //send the request to the server
+            if (send(server_fd, str_from_client.c_str(), str_from_client.size(), 0) == -1) {
+                perror("send");
+            }
+
+
+
         }
         else {
             //expired, need to send the request to server to check if need to update value
@@ -313,8 +391,6 @@ int setUpServer() {
         exit(1);
     }
 
-    printf("server: waiting for connections...\n");
-
     return sockfd;
 
 }
@@ -358,7 +434,7 @@ int main(void)
                 perror("recv");
                 exit(1);
             }
-            
+
             //parse the content from the client
             string content_from_client = buf_from_client;
 
@@ -402,10 +478,4 @@ int main(void)
 
 //hendle_get: at 189, implement revalidation for expired/fresh cache data
 
-
-
-
-
-
-
-
+//need to resolve chunked data reading at 78

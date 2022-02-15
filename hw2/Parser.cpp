@@ -19,22 +19,24 @@ vector<string> split(const string &s, char delim) {
 }
 
 Parser::Parser() {
-    string addr = "";           
-    string url = "";            
-    string http_version = "";
-    string max_age = "";
-    string content = "";
-    string method = "";
-    string etag = "";
-    string last_modified = "";
-    string status_code = "";
-    string host = "";
-    string port_number = "";
-    bool no_cache = false; // Request
-    bool no_store = false; // Request
-    string max_stale = ""; // Request
-    string min_fresh = ""; // Request
-    bool must_revalidate = false; // Response
+    addr = "";           
+    url = "";            
+    http_version = "";
+    max_age = "";
+    content = "";
+    method = "";
+    etag = "";
+    last_modified = "";
+    status_code = "";
+    host = "";
+    port_number = "";
+    no_cache = false; // Request
+    no_store = false; // Request
+    max_stale = ""; // Request
+    min_fresh = ""; // Request
+    must_revalidate = false; // Response
+    chuncked = false;
+    content_length = "";
 
    
 }
@@ -137,7 +139,24 @@ void Parser::setArguments(string input, string type) {
         start = input.find("must-revalidate");
         if(start != string::npos){
             must_revalidate = true;
-        }           
+        }   
+        // parse content_length
+        start = input.find("Content-Length");  
+        if(start != string::npos) {
+            start += 16;
+            end = input.find_first_of("\n", start);
+            content_length = input.substr(start, (end - start));
+        }      
+        // parse transfer encoding -- chuncked
+        start = input.find("Transfer-Encoding");
+        if(start != string::npos) {
+            end = input.find("\n", start);
+            string currLine = input.substr(start, (end - start));
+            if(currLine.find("chunked") != string::npos) {
+                chuncked = true;
+            }
+        }
+
     }
 
 }

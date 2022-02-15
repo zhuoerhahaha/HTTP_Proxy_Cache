@@ -23,6 +23,8 @@ class Parser {
         string min_fresh; // Request
         string must_revalidate; // Response
         string max_age; // Response
+        string content_length;
+        bool chuncked;
         
         Parser();
         void setArguments(string input, string type);
