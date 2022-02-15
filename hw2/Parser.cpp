@@ -101,11 +101,6 @@ void Parser::setArguments(string input, string type) {
         if(start != string::npos){
             no_store = true;
         }        
-
-
-
-        
-
     }else if(type == "Response"){
         map<string, string> m;
         string header;

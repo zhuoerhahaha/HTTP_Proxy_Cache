@@ -42,21 +42,58 @@ void *get_in_addr(struct sockaddr *sa)
     return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
-string handle_connect(int server_fd, int client_fd, Parser * input, string content_from_client){
-    // //test
-    char buf[MAXDATASIZE];
-    if(send(server_fd, content_from_client.c_str(), content_from_client.size(), 0)== -1){
-        perror("send");
-        exit(1);
-    }
 
-    // vector<unsigned char> buffer(MAXDATASIZE);
-    // int n_bytes = recv(sockfd, buffer.data(), buffer.size(), 0);
-    int n_bytes;
-    if ((n_bytes = recv(server_fd, buf, MAXDATASIZE-1, 0)) == -1) {
-        perror("recv");
-        exit(1);
+struct tm * getCurrentTime() {
+    time_t t; // t passed as argument in function time()
+    struct tm * tt; // decalring variable for localtime()
+    time (&t); //passing argument to time()
+    tt = localtime(&t);
+    return tt;
+}
+
+
+//erronous!!!
+void handle_connect(int server_fd, int client_fd, Parser * input, string content_from_client){
+    // //test
+    send(client_fd, "HTTP/1.1 200 OK\r\n\r\n", 19, 0);
+    char buf[MAXDATASIZE];
+    int i = 0;
+    while(true) {
+        cout << i << endl;
+        i++;
+        int n_bytes;
+        //test--listen to client
+        if ((n_bytes = recv(client_fd, buf, MAXDATASIZE-1, 0)) <= 1) {
+            perror("recv");
+            exit(1);
+        }
+
+        cout << "Client says:" << buf[0] << " num bytes " << n_bytes << endl;
+        //test--send to server
+        // if(send(server_fd, content_from_client.c_str(), content_from_client.size(), 0)== -1){
+        //     perror("send");
+        //     exit(1);
+        // }
+        if(send(server_fd, buf, sizeof(buf), 0)== -1){
+            perror("send");
+            exit(1);
+        }
+        // vector<unsigned char> buffer(MAXDATASIZE);
+        // int n_bytes = recv(sockfd, buffer.data(), buffer.size(), 0);
+        //test--listen to server
+        if ((n_bytes = recv(server_fd, buf, MAXDATASIZE-1, 0)) <= 1) {
+            perror("recv");
+            exit(1);
+        }
+        cout << "Server says:" << buf << " num bytes " << n_bytes << endl;
+        //test-send to client
+        if(send(client_fd, buf, sizeof(buf), 0)== -1){
+            perror("send");
+            exit(1);
+        }      
+        memset(buf, NULL, MAXDATASIZE - 1);  
     }
+    
     // if(n_bytes != -1){
     //     // buffer.resize(n_bytes);
     //     buf.resize(n_bytes);
@@ -65,28 +102,105 @@ string handle_connect(int server_fd, int client_fd, Parser * input, string conte
     //     perror("receive");
     // }
     // string s(buffer.begin(), buffer.end());
-    string s(buf);
-    cout << endl << n_bytes << s << endl;
-    return s;
+    // string s(buf);
+    // cout << endl << n_bytes << s << endl;
+    // return s;
 
 
 
 
 
 
+    // send(client_fd, "HTTP/1.1 200 OK\r\n\r\n", 19, 0);
+    // fd_set master;    // master file descriptor list
+    // fd_set temp_fds;  // temp file descriptor list for select()
+    // int fdmax;        // maximum file descriptor number
 
-    // fd_set master;
-    // fd_set read_fds;
-    // int fdmax;
+    // FD_ZERO(&master);    // clear the master and temp sets
+    // FD_SET(client_fd, &master);
+    // FD_SET(server_fd, &master);
+    
+    // //keep track of the biggest file descriptor
+    // fdmax = server_fd > client_fd ? server_fd : client_fd;
+
+    // while(true) {
+    //     // add the client socket to the master set
+    //     temp_fds = master;  //copy it
+    //     if(select(fdmax+1, &temp_fds, NULL, NULL, NULL) == -1) {
+    //         perror("select");
+    //         exit(4);
+    //     }
+    //     // run through the existing connections looking for data to read
+    //     int len;
+    //     for(int i = 0; i <= fdmax; i++) {
+    //         char buff[MAXDATASIZE];
+    //         if (FD_ISSET(i, &temp_fds)) {
+    //             len = recv(i, buff, sizeof(buff), 0);
+    //             if (len <= 0) {
+    //                 return;
+    //             }
+    //             else {
+    //                 if (send(i, buff, len, 0) <= 0) {
+    //                     return;
+    //                 }
+    //             }
+    //         }
+    //         cout << buff << endl;
+    //     }       
+    // }
+
+
+
 }
 
-string handle_get(int sockfd, Parser * input, string str_from_client){
-    
+string handle_get(int server_fd, int client_fd, Parser * input, string str_from_client, map<string, pair<string, time_t>> cache){
+    string url = input->url;
+    if(cache.count(url) == 0) {
+        //no such url in map, need to get from server and store the response into cache
+        char buffFromServer[MAXDATASIZE];
+        int numbytes;
+        //send the data to server
+        if (send(server_fd, str_from_client.c_str(), str_from_client.size(), 0) == -1) {
+            perror("send");
+        }
+        //receive from server
+        if ((numbytes = recv(server_fd, buffFromServer, MAXDATASIZE-1, 0)) == -1) {
+            perror("recv");
+            exit(1);
+        }
+        Parser * response = new Parser();
+        string serverString(buffFromServer);
+        response->setArguments(serverString, "Response");
+        // time_t current_seconds;
+        // current_seconds = time (NULL);
+        struct tm * current_time = getCurrentTime();
+        if(response->max_age != "") {
+            // current_seconds += stoi(response->max_age);
+            current_time->tm_sec += stoi(response->max_age);
+        }
+        cache.insert({response->url, make_pair(serverString, mktime(current_time))});
+    }
+
+    else {
+        //contains such url, need to check if it expired
+        struct tm * current_time = getCurrentTime();
+        pair<string, time_t> current_responseTime_pair = cache.find(url)->second;
+        
+        if(difftime(mktime(current_time), current_responseTime_pair.second) > 0) {
+            //non expired, need to check if revalidation needed
+            cout << "";
+        }
+        else {
+            //expired, need to send the request to server to check if need to update value
+
+        }
+
+    }
     return NULL;
 
 }
 
-string handle_post(int sockfd, Parser * input, string str_from_client){
+string handle_post(int server_fd, int client_fd, Parser * input, string str_from_client){
     
     return NULL;
 
@@ -215,7 +329,9 @@ int main(void)
     char s[INET6_ADDRSTRLEN];
 
     listen_sockfd = setUpServer();
-    
+
+    map<string, pair<string, time_t>> cache;
+
     while(1) {  // main accept() loop
         sin_size = sizeof their_addr;
         new_fd = accept(listen_sockfd, (struct sockaddr *)&their_addr, &sin_size);
@@ -256,21 +372,21 @@ int main(void)
 
             string response_content = "";
             if(input->method == "GET"){
-                response_content = handle_get(send_sockfd, input, content_from_client);
+                handle_get(send_sockfd, new_fd, input, content_from_client, cache);
             } else if(input->method == "CONNECT"){
-               response_content =  handle_connect(send_sockfd, new_fd, input, content_from_client);
+               handle_connect(send_sockfd, new_fd, input, content_from_client);
             } else if(input->method == "POST"){
-                response_content = handle_post(send_sockfd, input, content_from_client);
+                handle_post(send_sockfd, new_fd, input, content_from_client);
             } 
 
             //close sockfd with server
             close(send_sockfd);
 
             //send back the content to the client
-            if (send(new_fd, response_content.c_str(), response_content.size(), 0) == -1) {
-                perror("send");
-                exit(1);
-            }           
+            // if (send(new_fd, response_content.c_str(), response_content.size(), 0) == -1) {
+            //     perror("send");
+            //     exit(1);
+            // }           
             //close the current socket for client
             close(new_fd);
             exit(0);
@@ -282,10 +398,9 @@ int main(void)
 }
 
 
-//how to set up the cache(using hashmap<url, pair<response, max_age> >)
-//how to handle multi threading
+//handle_connect: cannot receive anything from server/client, how to implement select
 
-//stuck on from 239 connectToServer at 97. "google.com" can open the socket but cannot connect, else could not build the socket.
+//hendle_get: at 189, implement revalidation for expired/fresh cache data
 
 
 
