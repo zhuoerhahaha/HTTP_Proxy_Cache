@@ -15,8 +15,10 @@
 #include "Parser.hpp"
 #include <vector>
 #include<string.h>
+#include <thread> 
+#include <pthread.h>
 #define IN_PORT "12345"  // the port users will be connecting to
-#define MAXDATASIZE 60000
+#define MAXDATASIZE 700000
 
 #define BACKLOG 10   // how many pending connections queue will hold
 using namespace std;
@@ -52,7 +54,7 @@ struct tm * getCurrentTime() {
 
 
 
-string RECEIVE(int server_fd) {
+string RECEIVE(int server_fd, int client_fd) {
     string result;
     string header;
     string content;
@@ -75,6 +77,7 @@ string RECEIVE(int server_fd) {
             break;
         }
     }
+
     //receive the content from server
     if(response->chuncked) {
         //deal with chunked data        
@@ -114,9 +117,10 @@ string RECEIVE(int server_fd) {
             result.append(currBuff);
         }
     }
+    
     else {
         //deal with content_length-specified data
-        while(true) {
+        // while(true) {
             char currBuff[MAXDATASIZE];
             int numbytes;
             //test
@@ -125,20 +129,22 @@ string RECEIVE(int server_fd) {
                 perror("recv");
                 exit(1);
             }
-            cout << "Number of bytes: " << numbytes << "---------" << endl;
+            // cout << "Number of bytes: " << numbytes << "---------" << endl;
             result.append(currBuff);
-            cout << "String length: " << result.length() << "++++++++++"<< endl;
-            break;
+            // cout << "String length: " << result.length() << "++++++++++"<< endl;
+
+            // send(client_fd, result.c_str(), result.size(), 0);
+            // break;
             // string currStr(currBuff);
             // content.append(currStr);
             // if(content.length() >= stoi(response->content_length)) {
             //     result.append(content);
             //     break;
             // }
-        }
+        // }
 
     }
-    // cout << "Result: +++++++++++++++\n"<< result << endl;
+    
     return result;
 }
 
@@ -161,8 +167,7 @@ string appendHeader(string request, string mode, string strToAdd) {
 //erronous!!!
 void handle_connect(int server_fd, int client_fd, Parser * input, string content_from_client){
     string str = "HTTP/1.1 200 OK\r\n\r\n";
-    // cout << "#########handle connect*******\n";
-    send(client_fd, str.c_str(), str.size(), 0);
+    send(client_fd, str.c_str(), 40, 0);
     fd_set master;    // master file descriptor list
     fd_set temp_fds;  // temp file descriptor list for select()
     int fdmax;        // maximum file descriptor number
@@ -187,8 +192,16 @@ void handle_connect(int server_fd, int client_fd, Parser * input, string content
         for(int i = 0; i < 2; i++) {
             char buff[MAXDATASIZE];
             if (FD_ISSET(fd[i], &temp_fds)) {        //find the match
+                if(fd[i] == client_fd) {
+                    cout << "FD-------: client_fd";
+                }
+                else {
+                    cout << "FD-------: server_fd";
+                }
                 len = recv(fd[i], buff, sizeof(buff), 0);
-                cout << buff << endl;
+                cout << "  Length of string: " << len << endl;
+                string str(buff);
+                cout << str.substr(0, 500) << endl;
                 if (len <= 0) {
                     return;
                 }
@@ -198,17 +211,15 @@ void handle_connect(int server_fd, int client_fd, Parser * input, string content
                     }
                 }
             }
-            
-
             // cout << buff << endl;
-        }       
+        }   
     }
 
 }
 
 void handle_get(int server_fd, int client_fd, Parser * request, string str_from_client, map<string, pair<string, time_t>> cache){
     string url = request->url;
-    // cout << "########################handle get\n";
+    cout << "URL:==============="<< request->url;
     if(cache.count(url) == 0) {
         //no such url in map, need to get from server and store the response into cache
         string serverString;
@@ -218,13 +229,11 @@ void handle_get(int server_fd, int client_fd, Parser * request, string str_from_
             perror("send");
         }
         //receive from server, need to use a seperate function to get the response
-        serverString = RECEIVE(server_fd);
+        serverString = RECEIVE(server_fd, client_fd);
         Parser * response = new Parser();
-        //test
-        send(client_fd, serverString.c_str(), serverString.size(), 0);
+        //send back to the server
+        send(client_fd, serverString.c_str(), serverString.length(), 0);
         response->setArguments(serverString, "Response");
-        // time_t current_seconds;
-        // current_seconds = time (NULL);
         struct tm * current_time = getCurrentTime();
         if(response->max_age != "") {
             // current_seconds += stoi(response->max_age);
@@ -399,17 +408,66 @@ int setUpServer() {
 }
 
 
-using namespace std::chrono;
+
+
+
+// void * handle_operation(int new_fd, map<string, pair<string, time_t>> cache) {
+//     int send_sockfd;
+//     char buf_from_client[MAXDATASIZE];                      //buff to hold the received data from the client
+//     char buf_from_server[MAXDATASIZE];                      //buff to hold the received data from the server
+//     int numbytes_server;                                    //number of bytes received from the client
+//     int numbytes_client;                                    //number of bytes received from the client
+    
+//     char incomingAddr[INET6_ADDRSTRLEN];
+
+//     //receive from the client
+//     if ((numbytes_client = recv(new_fd, buf_from_client, MAXDATASIZE-1, 0)) == -1) {
+//         perror("recv");
+//         exit(1);
+//     }
+
+//     //parse the content from the client
+//     string content_from_client = buf_from_client;
+
+//     Parser * input = new Parser();
+
+//     input->setArguments(content_from_client, "Request");       
+
+//     //set up socket and connect to the server
+//     send_sockfd = connectToServer(input->host.c_str(), input->port_number.c_str());         
+
+//     string response_content = "";
+//     if(input->method == "GET"){
+//         handle_get(send_sockfd, new_fd, input, content_from_client, cache);
+//     } else if(input->method == "CONNECT"){
+//         handle_connect(send_sockfd, new_fd, input, content_from_client);
+//     } else if(input->method == "POST"){
+//         handle_post(send_sockfd, new_fd, input, content_from_client);
+//     } 
+
+//     //close sockfd with server
+//     close(send_sockfd);
+    
+//     //close the current socket for client
+//     close(new_fd);
+//     exit(0);
+
+// }
+
+
+
+
 int main(void)
 {
-    int listen_sockfd, new_fd, send_sockfd;  // listen to client on listen_sockfd, new connection on new_fd, talk to server on send_sockfd
+    int listen_sockfd, new_fd;  // listen to client on listen_sockfd, new connection on new_fd, talk to server on send_sockfd
+    int send_sockfd;
     struct sockaddr_storage their_addr; // connector's address information
     socklen_t sin_size;
     char s[INET6_ADDRSTRLEN];
-
+    map<string, pair<string, time_t>> cache;
     listen_sockfd = setUpServer();
 
-    map<string, pair<string, time_t>> cache;
+
 
     while(1) {  // main accept() loop
         sin_size = sizeof their_addr;
@@ -424,7 +482,10 @@ int main(void)
             s, sizeof s);
         printf("server: got connection from %s\n", s);
 
-        if (!fork()) { // this is the child process
+        
+        // thread myThread(handle_operation, new_fd, cache);
+        if(!fork()) {
+
             char buf_from_client[MAXDATASIZE];                      //buff to hold the received data from the client
             char buf_from_server[MAXDATASIZE];                      //buff to hold the received data from the server
             int numbytes_server;                                    //number of bytes received from the client
@@ -441,7 +502,7 @@ int main(void)
             //parse the content from the client
             string content_from_client = buf_from_client;
 
-            Parser * input = new Parser();     
+            Parser * input = new Parser();
 
             input->setArguments(content_from_client, "Request");       
 
@@ -452,18 +513,20 @@ int main(void)
             if(input->method == "GET"){
                 handle_get(send_sockfd, new_fd, input, content_from_client, cache);
             } else if(input->method == "CONNECT"){
-               handle_connect(send_sockfd, new_fd, input, content_from_client);
+                handle_connect(send_sockfd, new_fd, input, content_from_client);
             } else if(input->method == "POST"){
                 handle_post(send_sockfd, new_fd, input, content_from_client);
             } 
 
             //close sockfd with server
             close(send_sockfd);
-          
+            
             //close the current socket for client
             close(new_fd);
             exit(0);
         }
+
+        
         close(new_fd);  // parent doesn't need this
     }
 
@@ -476,3 +539,9 @@ int main(void)
 //hendle_get: at 189, implement revalidation for expired/fresh cache data
 
 //need to resolve chunked data reading at 78
+
+
+
+//question: get cannot decode the content
+//          CONNECT will return 400
+//          connect to server host will break when using http
