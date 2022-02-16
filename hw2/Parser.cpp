@@ -29,7 +29,7 @@ Parser::Parser() {
     last_modified = "";
     status_code = "";
     host = "";
-    port_number = "";
+    port_number = "default";
     no_cache = false; // Request
     no_store = false; // Request
     max_stale = ""; // Request
@@ -43,6 +43,8 @@ Parser::Parser() {
 
 
 void Parser::setArguments(string input, string type) {
+
+
     if(type == "Request"){
         // basic paramters
         map<string, string> m;
@@ -61,11 +63,12 @@ void Parser::setArguments(string input, string type) {
         if(start != string::npos) {
             start = start + 6;
             end = input.find("\n", start);
-            int col = input.find(":", start);
+            string currLine = input.substr(start, (end - start));
+            int col = currLine.find(":");
             if (col != string::npos) {
-                host = input.substr(start, (col - start));
+                host = currLine.substr(0, col);
                 col++;
-                port_number = input.substr(col, (end - col));
+                port_number = currLine.substr(col);
             }
             else {
                 host = input.substr(start, (end - start));
@@ -159,5 +162,8 @@ void Parser::setArguments(string input, string type) {
 
     }
 
+    // cout << "##########\n";
+    // cout << host << "3" << endl;
+    // cout << "************\n";
 }
 
