@@ -44,109 +44,6 @@ void *get_in_addr(struct sockaddr *sa)
 }
 
 
-struct tm * getCurrentTime() {
-    time_t t; // t passed as argument in function time()
-    struct tm * tt; // decalring variable for localtime()
-    time (&t); //passing argument to time()
-    tt = localtime(&t);
-    return tt;
-}
-
-
-
-string RECEIVE(int server_fd, int client_fd) {
-    string result;
-    string header;
-    string content;
-    Parser *response = new Parser();
-    //receive the header from server
-    while(true) {
-        char currBuff[MAXDATASIZE];
-        int numbytes;
-        //test
-        // if ((numbytes = recv(server_fd, currBuff, MAXDATASIZE-1, 0)) == -1) {
-        if ((numbytes = recv(server_fd, currBuff, 1, MSG_WAITALL)) == -1){
-            perror("recv");
-            exit(1);
-        }
-        string currStr(currBuff);
-        header.append(currStr);
-        if(header.find("\r\n\r\n") != string::npos) {
-            response->setArguments(header, "Response");
-            result.append(header);
-            break;
-        }
-    }
-
-    //receive the content from server
-    if(response->chuncked) {
-        //deal with chunked data        
-        while(true){
-            string currentLine = "";
-            int data_length = 0;
-            while(true){
-                char currBuff[MAXDATASIZE];
-                int numbytes;
-                if ((numbytes = recv(server_fd, currBuff, MAXDATASIZE - 1, 0)) == -1) {
-                    perror("recv");
-                    exit(1);
-                }
-                currentLine.append(currBuff);
-                int end = currentLine.find("\r\n");
-                if(end != string::npos){
-                    if(end == 0){
-                        data_length = -1;
-                        break;
-                    }
-                    string data_length_str = currentLine.substr(0, end);
-                    data_length = stoul(data_length_str, nullptr, 16);
-                    break;
-                }
-            }
-            char currBuff[MAXDATASIZE];
-            int numbytes;
-            if(data_length == 0){ // when meeting the ending of the file, data_length would be like 0
-                break;
-            } else if(data_length == -1){ // when the new line contains only "/r/n", data_length would be like -1
-                continue;
-            }
-            if ((numbytes = recv(server_fd, currBuff, data_length, 0)) == -1) {
-                    perror("recv");
-                    exit(1);
-            }
-            result.append(currBuff);
-        }
-    }
-    
-    else {
-        //deal with content_length-specified data
-        // while(true) {
-            char currBuff[MAXDATASIZE];
-            int numbytes;
-            //test
-            // if ((numbytes = recv(server_fd, currBuff, MAXDATASIZE-1, 0)) == -1) {
-            if ((numbytes = recv(server_fd, currBuff, stoi(response->content_length), MSG_WAITALL)) == -1) {
-                perror("recv");
-                exit(1);
-            }
-            // cout << "Number of bytes: " << numbytes << "---------" << endl;
-            result.append(currBuff);
-            // cout << "String length: " << result.length() << "++++++++++"<< endl;
-
-            // send(client_fd, result.c_str(), result.size(), 0);
-            // break;
-            // string currStr(currBuff);
-            // content.append(currStr);
-            // if(content.length() >= stoi(response->content_length)) {
-            //     result.append(content);
-            //     break;
-            // }
-        // }
-
-    }
-    
-    return result;
-}
 
 
 string appendHeader(string request, string mode, string strToAdd) {
@@ -217,45 +114,164 @@ void handle_connect(int server_fd, int client_fd, Parser * input, string content
 
 }
 
-void handle_get(int server_fd, int client_fd, Parser * request, string str_from_client, map<string, pair<string, time_t>> cache){
-    string url = request->url;
-    cout << "URL:==============="<< request->url;
-    if(cache.count(url) == 0) {
-        //no such url in map, need to get from server and store the response into cache
-        string serverString;
+
+
+
+
+
+
+struct tm * getCurrentTime() {
+    time_t t; // t passed as argument in function time()
+    struct tm * tt; // decalring variable for localtime()
+    time (&t); //passing argument to time()
+    tt = localtime(&t);
+    return tt;
+}
+
+
+
+pair<string, string> RECEIVE(int server_fd, int client_fd) {
+    string header;
+    string content;
+    Parser *response = new Parser();
+    //receive the header from server
+    while(true) {
+        char currBuff[MAXDATASIZE];
         int numbytes;
+        //test
+        // if ((numbytes = recv(server_fd, currBuff, MAXDATASIZE-1, 0)) == -1) {
+        if ((numbytes = recv(server_fd, currBuff, 1, MSG_WAITALL)) == -1){
+            perror("recv");
+            exit(1);
+        }                                                                                          
+        string currStr(currBuff);
+        header.append(currStr);
+        if(header.find("\r\n\r\n") != string::npos) {
+            response->setArguments(header, "Response");
+            header = header.substr(0, header.length() - 4);
+            content.append("\r\n\r\n");
+            break;
+        }
+    }
+
+
+
+    //receive the content from server
+    if(response->chuncked) {
+        //deal with chunked data        
+        while(true){
+            string currentLine = "";
+            int data_length = 0;
+            while(true){
+                char currBuff[MAXDATASIZE];
+                int numbytes;
+                if ((numbytes = recv(server_fd, currBuff, MAXDATASIZE - 1, 0)) == -1) {
+                    perror("recv");
+                    exit(1);
+                }
+                currentLine.append(currBuff);
+                int end = currentLine.find("\r\n");
+                if(end != string::npos){
+                    if(end == 0){
+                        data_length = -1;
+                        break;
+                    }
+                    string data_length_str = currentLine.substr(0, end);
+                    data_length = stoul(data_length_str, nullptr, 16);
+                    break;
+                }
+            }
+            char currBuff[MAXDATASIZE];
+            int numbytes;
+            if(data_length == 0){ // when meeting the ending of the file, data_length would be like 0
+                break;
+            } else if(data_length == -1){ // when the new line contains only "/r/n", data_length would be like -1
+                continue;
+            }
+            if ((numbytes = recv(server_fd, currBuff, data_length, 0)) == -1) {
+                    perror("recv");
+                    exit(1);
+            }
+            content.append(currBuff);
+        }
+    }
+    
+    else {
+        //deal with content_length-specified data
+        // while(true) {
+            char currBuff[MAXDATASIZE];
+            int numbytes;
+            //test
+            // if ((numbytes = recv(server_fd, currBuff, MAXDATASIZE-1, 0)) == -1) {
+            if ((numbytes = recv(server_fd, currBuff, stoi(response->content_length), MSG_WAITALL)) == -1) {
+                perror("recv");
+                exit(1);
+            }
+            // cout << "Number of bytes: " << numbytes << "---------" << endl;
+            content.append(currBuff);
+            // cout << "String length: " << result.length() << "++++++++++"<< endl;
+
+            // send(client_fd, result.c_str(), result.size(), 0);
+            // break;
+            // string currStr(currBuff);
+            // content.append(currStr);
+            // if(content.length() >= stoi(response->content_length)) {
+            //     result.append(content);
+            //     break;
+            // }
+        // }
+
+    }
+    
+    return make_pair(header, content);
+}
+
+void handle_get(int server_fd, int client_fd, Parser * request, string str_from_client, map<string, pair<pair<string, string>, time_t>> cache){
+    //This is the key of the cache
+    string url = request->url;
+    if(cache.count(url) == 0) {                             //no such url in map, need to get from server and store the response into cache
+        pair<string, string> header_content_pair;           //the header-content string pair of the response from server
+        string serverResponse;
         //send the data to server
         if (send(server_fd, str_from_client.c_str(), str_from_client.size(), 0) == -1) {
             perror("send");
         }
         //receive from server, need to use a seperate function to get the response
-        serverString = RECEIVE(server_fd, client_fd);
+        header_content_pair = RECEIVE(server_fd, client_fd);
+
         Parser * response = new Parser();
-        //send back to the server
-        send(client_fd, serverString.c_str(), serverString.length(), 0);
-        response->setArguments(serverString, "Response");
-        struct tm * current_time = getCurrentTime();
+        //append the header-content string pair to serverString
+        serverResponse.append(header_content_pair.first);
+        serverResponse.append(header_content_pair.second);
+        //send serverString back to the client
+        cout << "This is our content -------------------\n" << serverResponse << endl;
+        send(client_fd, serverResponse.c_str(), serverResponse.length(), 0);
+        //parse the response header
+        response->setArguments(header_content_pair.first, "Response");
+        //get the current time
+        struct tm * entry_age = getCurrentTime();
+        //calculate the maximum living time of the cache          
         if(response->max_age != "") {
-            // current_seconds += stoi(response->max_age);
-            current_time->tm_sec += stoi(response->max_age);
+            entry_age->tm_sec += stoi(response->max_age);
         }
-        cache.insert({response->url, make_pair(serverString, mktime(current_time))});
+        //insert the <url, <<header, content>, time>> entry into the cache
+        cache.insert({response->url, make_pair(header_content_pair, mktime(entry_age))});    //mktime(): struct tm ==>  time_t
     }
 
     else {
         //contains such url, need to check if it expired
         struct tm * current_time = getCurrentTime();
-        pair<string, time_t> current_responseTime_pair = cache.find(url)->second;
+        pair<pair<string, string>, time_t> current_responseTime_pair = cache.find(url)->second;
         
         if(difftime(mktime(current_time), current_responseTime_pair.second) > 0) {
             //fresh, but need to check if revalidation needed
 
             //append etag/last_modified to the tail of the header
             if(request->etag != "") {
-                str_from_client = appendHeader(current_responseTime_pair.first, "etag", request->etag);
+                // str_from_client = appendHeader(current_responseTime_pair.first, "etag", request->etag);
             }
             if(request->last_modified != "") {
-                str_from_client = appendHeader(current_responseTime_pair.first, "last_modified", request->last_modified);
+                // str_from_client = appendHeader(current_responseTime_pair.first, "last_modified", request->last_modified);
             }
             //send the request to the server
             if (send(server_fd, str_from_client.c_str(), str_from_client.size(), 0) == -1) {
@@ -464,7 +480,7 @@ int main(void)
     struct sockaddr_storage their_addr; // connector's address information
     socklen_t sin_size;
     char s[INET6_ADDRSTRLEN];
-    map<string, pair<string, time_t>> cache;
+    map<string, pair<pair<string, string>, time_t>> cache;  //<url, <<header, content>, time>>
     listen_sockfd = setUpServer();
 
 
@@ -542,6 +558,5 @@ int main(void)
 
 
 
-//question: get cannot decode the content
-//          CONNECT will return 400
+//question: CONNECT will return 400
 //          connect to server host will break when using http
