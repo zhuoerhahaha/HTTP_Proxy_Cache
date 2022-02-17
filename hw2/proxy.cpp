@@ -64,19 +64,20 @@ string appendHeader(string request, string mode, string strToAdd) {
 //erronous!!!
 void handle_connect(int server_fd, int client_fd, Parser * input, string content_from_client){
     string str = "HTTP/1.1 200 OK\r\n\r\n";
-    send(client_fd, str.c_str(), 40, 0);
+    send(client_fd, "HTTP/1.1 200 OK\r\n\r\n", 20, 0);
     fd_set master;    // master file descriptor list
     fd_set temp_fds;  // temp file descriptor list for select()
     int fdmax;        // maximum file descriptor number
 
-    FD_ZERO(&master);    // clear the master and temp sets
-    FD_SET(client_fd, &master);
-    FD_SET(server_fd, &master);
+    
     
     //keep track of the biggest file descriptor
     fdmax = server_fd > client_fd ? server_fd + 1 : client_fd + 1;
     int i = 0;
     while(true) {
+        FD_ZERO(&master);    // clear the master and temp sets
+        FD_SET(client_fd, &master);
+        FD_SET(server_fd, &master);
         // add the client socket to the master set
         temp_fds = master;  //copy it
         if(select(fdmax, &temp_fds, NULL, NULL, NULL) == -1) {
@@ -87,7 +88,7 @@ void handle_connect(int server_fd, int client_fd, Parser * input, string content
         int len;
         int fd[2] = {server_fd, client_fd};
         for(int i = 0; i < 2; i++) {
-            char buff[MAXDATASIZE];
+            char buff[MAXDATASIZE] = {0};
             if (FD_ISSET(fd[i], &temp_fds)) {        //find the match
                 if(fd[i] == client_fd) {
                     cout << "FD-------: client_fd";
@@ -98,7 +99,7 @@ void handle_connect(int server_fd, int client_fd, Parser * input, string content
                 len = recv(fd[i], buff, sizeof(buff), 0);
                 cout << "  Length of string: " << len << endl;
                 string str(buff);
-                cout << str.substr(0, 500) << endl;
+                cout << buff << endl;
                 if (len <= 0) {
                     return;
                 }
@@ -322,7 +323,7 @@ int connectToServer(const char * host, const char * in_port) {
     if(!isNumber(port)) {
         string port_num = "80";
         // status = getaddrinfo(host, port_num.c_str(), &host_info, &host_info_list);
-        status = getaddrinfo("rabihyounes.com", "80", &host_info, &host_info_list);
+        status = getaddrinfo("rabihyounes.com", "80", &host_info, &host_info_list);     //http
     }
     else {
         status = getaddrinfo(host, in_port, &host_info, &host_info_list);
