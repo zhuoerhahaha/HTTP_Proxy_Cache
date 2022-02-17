@@ -593,5 +593,3 @@ int main(void)
 //          connect to server host will break when using http
 
 //when receving chunked data
-
-//the date need to be the server generating date, not date received on proxy
