@@ -142,110 +142,26 @@ pair<string, string> RECEIVE(int server_fd, int client_fd) {
         }
     }
 
+    cout << header << endl;
     //receive the content from server
-    if(response->chuncked) {
-        // deal with chunked data        
-        // while(true){
-        //     string currentLine = "";
-        //     currentLine.clear();
-        //     int data_length = 0;
-        //     // int count = 0;
-        //     while(true){
-        //         // cout << count << endl;
-        //         // count ++;
-        //         char currBuff[MAXDATASIZE];
-        //         int numbytes;
-        //         if ((numbytes = recv(server_fd, currBuff, 1, MSG_WAITALL)) == -1) {         //read one byte at a time
-        //             perror("recv");
-        //             exit(1);
-        //         }
-        //         // cout << currentLine << endl;
-        //         currentLine.append(currBuff);
-        //         int end = currentLine.find("\r\n");                                                                                 
-        //         if(currentLine == "\r\n") {                                                 //if the current line contains only \r\n, then continue reading
-        //             // data_length = -1;
-        //             continue;
-        //         }
-        //         if(end != string::npos){
-        //             string data_length_str = currentLine.substr(0, end);
-        //             cout << "Current line: " << currentLine << endl;
-        //             cout << "Parsed str: " << data_length_str << endl;
-        //             data_length = stoi(data_length_str, nullptr, 16);
-        //             cout << "Length: " << data_length << endl;
-        //             break;
-        //         }
-        //     }  
-        //     char currBuff[MAXDATASIZE];
-        //     int numbytes; 
-        //     if(data_length == 0){ // when meeting the ending of the file, data_length would be like 0
-        //         break;
-        //     } else if(data_length == -1){ // when the new line contains only "/r/n", data_length would be like -1
-        //         continue;
-        //     }
-        //     if ((numbytes = recv(server_fd, currBuff, data_length, MSG_WAITALL)) == -1) {
-        //             perror("recv");
-        //             exit(1);
-        //     };
-        //     // cout << numbytes << endl;
-        //     content.append(currBuff);
-        // }
-
-        //  while(true){
-        //     string currentLine = "";
-        //     currentLine.clear();
-        //     int data_length = 0;
-        //     // int count = 0;
-        //     while(true){
-        //         // cout << count << endl;
-        //         // count ++;
-        //         char currBuff[2];
-        //         int numbytes;
-        //         if ((numbytes = recv(server_fd, currBuff, 1, MSG_WAITALL)) == -1) {         //read one byte at a time
-        //             perror("recv");
-        //             exit(1);
-        //         }
-        //         // cout << currentLine << endl;
-        //         currentLine.append(currBuff);
-        //         int end = currentLine.find("\r\n");                                                                              
-        //         if(currentLine == "\r\n") {                                 //if the current line contains only \r\n, then continue reading
-        //             cout << "found ctrl" << endl;
-        //             currentLine.clear();
-        //             continue;
-        //         }
-        //         if(end != string::npos){
-        //             cout << "found ctrl" << endl;
-        //             string data_length_str = currentLine.substr(0, end);
-        //             // cout << "Current line: " << currentLine << endl;
-        //             // cout << "Parsed str: " << data_length_str << endl;
-        //             data_length = stoi(data_length_str, nullptr, 16);
-        //             // cout << "Length: " << data_length << endl;
-        //             break;
-        //         }
-        //     }  
-        //     char currBuff[MAXDATASIZE];
-        //     int numbytes; 
-        //     if(data_length == 0){ // when meeting the ending of the file, data_length would be like 0
-        //         break;
-        //     } 
-        //     if ((numbytes = recv(server_fd, currBuff, data_length, MSG_WAITALL)) == -1) {
-        //             perror("recv");
-        //             exit(1);
-        //     };
-        //     // cout << numbytes << endl;
-        //     content.append(currBuff);
-        // }
-
-
-
+    if(response->chuncked) { 
         while(true) {
-            char buff[65536];
-            recv(server_fd, buff, 65536, 0);
-            content.append(buff);
-            if(content.find("\r\n\r\n") != string::npos) {
+            char buff[MAXDATASIZE];
+            recv(server_fd, buff, sizeof(buff), 0);
+            string currentStr = string(buff);
+            int end = currentStr.find("\r\n");
+            if(end == string::npos) {
+                perror("end");
+                exit(1);
+            }
+            int dataLength = stoi(currentStr.substr(0, end), nullptr, 16);
+            if(dataLength == 0) {
                 break;
             }
+            content.append(currentStr);
+            // cout << content << endl;
         }
-        cout << content.length();
+
 
     }
     
@@ -313,14 +229,18 @@ void handle_get(int server_fd, int client_fd, Parser * request, string str_from_
         //parse the response header
         response->setArguments(header_content_pair.first, "Response");
         //get the current time
-        struct tm * current_time = getCurrentTime();
-        struct tm * entry_age = getCurrentTime();
+        //get the current time
+        struct tm entry_time; 
+        //Mon, 18 Jul 2016 16:06:00 GMT              
+        strptime(response->date.c_str(), "%a, %d %b %Y %H:%M:%S", &entry_time);
+        
+        struct tm entry_age = entry_time;
         //calculate the maximum living time of the cache          
         if(response->max_age != "") {
-            entry_age->tm_sec = current_time->tm_sec + stoi(response->max_age);
+            entry_age.tm_sec = entry_time.tm_sec + stoi(response->max_age);
         }
         //insert the <url, <<header, content>, <input_time, max_time>>> entry into the cache
-        cache.insert({response->url, make_pair(header_content_pair, make_pair(mktime(current_time), mktime(entry_age)))});    //mktime(): struct tm ==>  time_t
+        cache.insert({response->url, make_pair(header_content_pair, make_pair(mktime(&entry_time), mktime(&entry_age)))});    //mktime(): struct tm ==>  time_t
     }
 
 
@@ -351,14 +271,17 @@ void handle_get(int server_fd, int client_fd, Parser * request, string str_from_
             header->setArguments(header_content_pair.first, "Response");
             if(header->status_code == "200") {                        //the response has been updated
                 //get the current time
-                struct tm * current_time = getCurrentTime();
-                struct tm * entry_age = getCurrentTime();
+                struct tm entry_time; 
+                //Mon, 18 Jul 2016 16:06:00 GMT              
+                strptime(header->date.c_str(), "%a, %d %b %Y %H:%M:%S", &entry_time);
+                
+                struct tm entry_age = entry_time;
                 //calculate the maximum living time of the cache          
                 if(header->max_age != "") {
-                    entry_age->tm_sec = current_time->tm_sec + stoi(header->max_age);
+                    entry_age.tm_sec = entry_time.tm_sec + stoi(header->max_age);
                 }
                 //insert the <url, <<header, content>, <input_time, max_time>>> entry into the cache
-                cache[request->url] = make_pair(header_content_pair, make_pair(mktime(current_time), mktime(entry_age)));
+                cache[request->url] = make_pair(header_content_pair, make_pair(mktime(&entry_time), mktime(&entry_age)));
                 
             }
             else if(header->status_code == "304") {                   //the response has not been updated
@@ -378,14 +301,18 @@ void handle_get(int server_fd, int client_fd, Parser * request, string str_from_
             Parser * header = new Parser();
             header->setArguments(header_content_pair.first, "Response");
             //get the current time
-            struct tm * current_time = getCurrentTime();
-            struct tm * entry_age = getCurrentTime();
+            //get the current time
+            struct tm entry_time; 
+            //Mon, 18 Jul 2016 16:06:00 GMT              
+            strptime(header->date.c_str(), "%a, %d %b %Y %H:%M:%S", &entry_time);
+                
+            struct tm entry_age = entry_time;
             //calculate the maximum living time of the cache          
             if(header->max_age != "") {
-                entry_age->tm_sec = current_time->tm_sec + stoi(header->max_age);
+                entry_age.tm_sec = entry_time.tm_sec + stoi(header->max_age);
             }
             //insert the <url, <<header, content>, <input_time, max_time>>> entry into the cache
-            cache[request->url] = make_pair(header_content_pair, make_pair(mktime(current_time), mktime(entry_age)));
+            cache[request->url] = make_pair(header_content_pair, make_pair(mktime(&entry_time), mktime(&entry_age)));
         }
         //send the cached response to client
         string str_toSend_toClient = cache[request->url].first.first + cache[request->url].first.second;

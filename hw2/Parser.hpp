@@ -25,6 +25,7 @@ class Parser {
         string max_age; // Response
         string content_length;
         bool chuncked;
+        string date;
         
         Parser();
         void setArguments(string input, string type);

@@ -161,6 +161,13 @@ void Parser::setArguments(string input, string type) {
                 chuncked = true;
             }
         }
+        // parse the date
+        start = input.find("DATE");
+        if(start != string::npos) {
+            start += 6;
+            int end = input.find(" GMT", start);
+            date = input.substr(start, end);
+        }
         
 
     }
