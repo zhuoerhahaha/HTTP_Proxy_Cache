@@ -22,6 +22,7 @@
 
 #define BACKLOG 10   // how many pending connections queue will hold
 using namespace std;
+
 void sigchld_handler(int s)
 {
     // waitpid() might overwrite errno, so we save and restore it:
@@ -115,7 +116,6 @@ struct tm * getCurrentTime() {
 }
 
 
-
 pair<string, string> RECEIVE(int server_fd, int client_fd) {
     string header;
     string content;
@@ -141,44 +141,62 @@ pair<string, string> RECEIVE(int server_fd, int client_fd) {
     }
 
 
-
     //receive the content from server
     if(response->chuncked) {
-        //deal with chunked data        
-        while(true){
-            string currentLine = "";
-            int data_length = 0;
-            while(true){
-                char currBuff[MAXDATASIZE];
-                int numbytes;
-                if ((numbytes = recv(server_fd, currBuff, MAXDATASIZE - 1, 0)) == -1) {
-                    perror("recv");
-                    exit(1);
-                }
-                currentLine.append(currBuff);
-                int end = currentLine.find("\r\n");
-                if(end != string::npos){
-                    if(end == 0){
-                        data_length = -1;
-                        break;
-                    }
-                    string data_length_str = currentLine.substr(0, end);
-                    data_length = stoul(data_length_str, nullptr, 16);
-                    break;
-                }
-            }
-            char currBuff[MAXDATASIZE];
-            int numbytes;
-            if(data_length == 0){ // when meeting the ending of the file, data_length would be like 0
+        // deal with chunked data        
+        // while(true){
+        //     string currentLine;
+        //     int data_length;
+        //     cout << "Number1: " << data_length;
+        //     while(true){
+        //         cout << "Currentline " << currentLine;
+        //         char currBuff[MAXDATASIZE];
+        //         int numbytes;
+        //         if ((numbytes = recv(server_fd, currBuff, 1, MSG_WAITALL)) == -1) {
+        //             perror("recv");
+        //             exit(1);
+        //         }
+        //         currentLine.append(currBuff);
+        //         int end = currentLine.find("\r\n");
+        //         if(end != string::npos){
+        //             if(end == 0){
+        //                 data_length = -1;
+        //                 break;
+        //             }
+        //             string data_length_str = currentLine.substr(0, end);
+        //             cout << "Current line: " << currentLine << endl;
+        //             cout << "Parsed str: " << data_length_str << endl;
+        //             data_length = stoi(data_length_str, nullptr, 10);
+        //             cout << "Number3: " << data_length;
+        //             break;
+        //         }
+        //     }  
+        //     char currBuff[MAXDATASIZE];
+        //     int numbytes;
+        //     cout << data_length;
+        //     if(data_length == 0){ // when meeting the ending of the file, data_length would be like 0
+        //         break;
+        //     } else if(data_length == -1){ // when the new line contains only "/r/n", data_length would be like -1
+        //         continue;
+        //     }
+        //     if ((numbytes = recv(server_fd, currBuff, data_length, MSG_WAITALL)) == -1) {
+        //             perror("recv");
+        //             exit(1);
+        //     }
+        //     cout << currBuff;
+        //     content.append(currBuff);
+        // }
+
+
+        
+        while(true) {
+            char buff[MAXDATASIZE];
+            recv(server_fd, buff, MAXDATASIZE, 0);
+            // cout << buff << endl; 
+            content.append(buff);
+            if(string(buff).find("\r\n\r\n") != string::npos) {
                 break;
-            } else if(data_length == -1){ // when the new line contains only "/r/n", data_length would be like -1
-                continue;
-            }
-            if ((numbytes = recv(server_fd, currBuff, data_length, 0)) == -1) {
-                    perror("recv");
-                    exit(1);
-            }
-            content.append(currBuff);
+            } 
         }
     }
     
@@ -209,6 +227,8 @@ pair<string, string> RECEIVE(int server_fd, int client_fd) {
 
     }
     
+    // cout << content.length();
+    cout << content.length();
     return make_pair(header, content);
 }
 
@@ -232,13 +252,12 @@ void handle_get(int server_fd, int client_fd, Parser * request, string str_from_
         serverResponse.append(header_content_pair.first);
         serverResponse.append(header_content_pair.second);
         //send serverString back to the client
-        cout << "This is our content -------------------\n" << serverResponse << endl;
         send(client_fd, serverResponse.c_str(), serverResponse.length(), 0);            //need to use a while-loop to send!!!!!
         //parse the response header
         response->setArguments(header_content_pair.first, "Response");
         //get the current time
         struct tm * current_time = getCurrentTime();
-        struct tm * entry_age;
+        struct tm * entry_age = getCurrentTime();
         //calculate the maximum living time of the cache          
         if(response->max_age != "") {
             entry_age->tm_sec = current_time->tm_sec + stoi(response->max_age);
@@ -281,7 +300,7 @@ void handle_get(int server_fd, int client_fd, Parser * request, string str_from_
             if(header->status_code == "200") {                        //the response has been updated
                 //get the current time
                 struct tm * current_time = getCurrentTime();
-                struct tm * entry_age;
+                struct tm * entry_age = getCurrentTime();
                 //calculate the maximum living time of the cache          
                 if(header->max_age != "") {
                     entry_age->tm_sec = current_time->tm_sec + stoi(header->max_age);
