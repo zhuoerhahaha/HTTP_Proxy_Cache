@@ -73,7 +73,7 @@ void Parser::setArguments(string input, string type) {
                 port_number = currLine.substr(col);
             }
             else {
-                host = input.substr(start, (end - start));
+                host = input.substr(start, (end - start) - 1);
             }
         }
         // parse max-age

@@ -46,21 +46,6 @@ void *get_in_addr(struct sockaddr *sa)
 
 
 
-string appendHeader(string request, string mode, string strToAdd) {
-    string result = "";
-    int headerSection = request.find("\r\n\r\n");
-    if(mode == "etags") {
-        result.append(request.substr(0, headerSection));
-        result.append("if-None-Match: " + strToAdd + "\n");
-    }
-    else if(mode == "last_modified") {
-        result.append(request.substr(0, headerSection));
-        result.append("if-Unmodified-Since: " + strToAdd + "\n");
-    }
-    result.append(request.substr(headerSection));
-    return result;
-}
-
 //erronous!!!
 void handle_connect(int server_fd, int client_fd, Parser * input, string content_from_client){
     string str = "HTTP/1.1 200 OK\r\n\r\n";
@@ -149,8 +134,8 @@ pair<string, string> RECEIVE(int server_fd, int client_fd) {
         header.append(currStr);
         if(header.find("\r\n\r\n") != string::npos) {
             response->setArguments(header, "Response");
-            header = header.substr(0, header.length() - 4);
-            content.append("\r\n\r\n");
+            header = header.substr(0, header.length() - 2);
+            content.append("\r\n");
             break;
         }
     }
@@ -227,10 +212,12 @@ pair<string, string> RECEIVE(int server_fd, int client_fd) {
     return make_pair(header, content);
 }
 
-void handle_get(int server_fd, int client_fd, Parser * request, string str_from_client, map<string, pair<pair<string, string>, time_t>> cache){
+
+//do not need str_from_client           <url, <<header, content>, <input_time, max_age>>>
+void handle_get(int server_fd, int client_fd, Parser * request, string str_from_client, map<string, pair<pair<string, string>, pair<time_t, time_t> > > cache){
     //This is the key of the cache
     string url = request->url;
-    if(cache.count(url) == 0) {                             //no such url in map, need to get from server and store the response into cache
+    if(cache.find(url) == cache.end()) {                    //no such url in map, need to get from server and store the response into cache
         pair<string, string> header_content_pair;           //the header-content string pair of the response from server
         string serverResponse;
         //send the data to server
@@ -246,41 +233,68 @@ void handle_get(int server_fd, int client_fd, Parser * request, string str_from_
         serverResponse.append(header_content_pair.second);
         //send serverString back to the client
         cout << "This is our content -------------------\n" << serverResponse << endl;
-        send(client_fd, serverResponse.c_str(), serverResponse.length(), 0);
+        send(client_fd, serverResponse.c_str(), serverResponse.length(), 0);            //need to use a while-loop to send!!!!!
         //parse the response header
         response->setArguments(header_content_pair.first, "Response");
         //get the current time
-        struct tm * entry_age = getCurrentTime();
+        struct tm * current_time = getCurrentTime();
+        struct tm * entry_age;
         //calculate the maximum living time of the cache          
         if(response->max_age != "") {
-            entry_age->tm_sec += stoi(response->max_age);
+            entry_age->tm_sec = current_time->tm_sec + stoi(response->max_age);
         }
-        //insert the <url, <<header, content>, time>> entry into the cache
-        cache.insert({response->url, make_pair(header_content_pair, mktime(entry_age))});    //mktime(): struct tm ==>  time_t
+        //insert the <url, <<header, content>, <input_time, max_time>>> entry into the cache
+        cache.insert({response->url, make_pair(header_content_pair, make_pair(mktime(current_time), mktime(entry_age)))});    //mktime(): struct tm ==>  time_t
     }
 
-    else {
-        //contains such url, need to check if it expired
+
+
+
+    else {                                                  //contains such url, need to check if it expired
         struct tm * current_time = getCurrentTime();
-        pair<pair<string, string>, time_t> current_responseTime_pair = cache.find(url)->second;
-        
-        if(difftime(mktime(current_time), current_responseTime_pair.second) > 0) {
+        //get the <<header, content>, <input_time, max_age>> pair
+        pair<pair<string, string>, pair<time_t, time_t>> current_responseTime_pair = cache.find(url)->second;
+        //max_age - current_time
+        if(difftime(current_responseTime_pair.second.second, mktime(current_time)) > 0) {           //fresh data
+            string stringToSend;
             //fresh, but need to check if revalidation needed
 
+            stringToSend.append(current_responseTime_pair.first.first);
             //append etag/last_modified to the tail of the header
             if(request->etag != "") {
-                // str_from_client = appendHeader(current_responseTime_pair.first, "etag", request->etag);
+                stringToSend.append("If-None-Match: " + request->etag + "\r\n");
             }
             if(request->last_modified != "") {
-                // str_from_client = appendHeader(current_responseTime_pair.first, "last_modified", request->last_modified);
+                stringToSend.append("If-Modified-Since: " + request->etag + "\r\n");
             }
             //send the request to the server
-            if (send(server_fd, str_from_client.c_str(), str_from_client.size(), 0) == -1) {
-                perror("send");
+            int numBytes = stringToSend.length() + 1;
+            const char * charToSend = stringToSend.c_str();
+            int byteSent = 0;
+            do {
+                byteSent += send(server_fd, charToSend + byteSent, str_from_client.length() - byteSent, 0);
+            }while(byteSent < numBytes);
+
+            pair<string, string> header_content_pair = RECEIVE(server_fd, client_fd);
+            Parser * header = new Parser();
+            header->setArguments(header_content_pair.first, "Response");
+            if(header->status_code == "200") {                        //the response has been updated
+                //get the current time
+                struct tm * current_time = getCurrentTime();
+                struct tm * entry_age;
+                //calculate the maximum living time of the cache          
+                if(header->max_age != "") {
+                    entry_age->tm_sec = current_time->tm_sec + stoi(header->max_age);
+                }
+                //insert the <url, <<header, content>, <input_time, max_time>>> entry into the cache
+                cache[request->url] = make_pair(header_content_pair, make_pair(mktime(current_time), mktime(entry_age)));
+                
             }
-
-
-
+            else if(header->status_code == "304") {                   //the response has not been updated
+                string serverResponse;
+                serverResponse.append(current_responseTime_pair.first.first);
+                serverResponse.append(current_responseTime_pair.first.second);
+            }
         }
         else {
             //expired, need to send the request to server to check if need to update value
@@ -323,7 +337,7 @@ int connectToServer(const char * host, const char * in_port) {
     if(!isNumber(port)) {
         string port_num = "80";
         // status = getaddrinfo(host, port_num.c_str(), &host_info, &host_info_list);
-        status = getaddrinfo("rabihyounes.com", "80", &host_info, &host_info_list);     //http
+        status = getaddrinfo(host, "80", &host_info, &host_info_list);     //http
     }
     else {
         status = getaddrinfo(host, in_port, &host_info, &host_info_list);
@@ -481,7 +495,7 @@ int main(void)
     struct sockaddr_storage their_addr; // connector's address information
     socklen_t sin_size;
     char s[INET6_ADDRSTRLEN];
-    map<string, pair<pair<string, string>, time_t>> cache;  //<url, <<header, content>, time>>
+    map<string, pair<pair<string, string>, pair<time_t, time_t> > > cache;  //<url, <<header, content>, <input_time, max_time>>>
     listen_sockfd = setUpServer();
 
 
@@ -561,3 +575,5 @@ int main(void)
 
 //question: CONNECT will return 400
 //          connect to server host will break when using http
+
+//need to parse the header of buff from client(modify when writing post function)
