@@ -15,17 +15,20 @@ class Parser {
         string etag;
         string last_modified;
         string status_code;
+        string status_msg;
         string host;
         string port_number;
         bool no_cache; // Request
         bool no_store; // Request
         string max_stale; // Request
         string min_fresh; // Request
-        string must_revalidate; // Response
+        bool must_revalidate; // Response
         string max_age; // Response
         string content_length;
-        bool chuncked;
+        bool chunked;
         string date;
+        string age;
+        string expires;
         
         Parser();
         void setArguments(string input, string type);
