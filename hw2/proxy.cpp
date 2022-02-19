@@ -28,6 +28,50 @@ using namespace std;
 
 mutex mtx;
 
+static void skeleton_daemon()
+{
+    // pre-fork
+    pid_t pid = fork();
+    
+    /* An error occurred */
+    if (pid < 0){
+        perror("pid < 0");
+        exit(EXIT_FAILURE);
+    }    
+    else if(pid == 0){
+        /* On success: The child process becomes session leader */
+        if (setsid() < 0)
+        exit(EXIT_FAILURE);
+        /* Catch, ignore and handle signals */
+        /*TODO: Implement a working signal handler */
+        signal(SIGHUP, SIG_IGN);
+        /* Fork off for the second time*/
+        pid = fork();
+        if(pid < 0){
+            perror("pid < 0");
+            exit(EXIT_FAILURE);
+        }
+          /* Set new file permissions */
+        umask(0);
+        /* Change the working directory to the root directory */
+        /* or another appropriated directory */
+        chdir("/");
+
+        /* Close all open file descriptors */
+        int x;
+        for (x = sysconf(_SC_OPEN_MAX); x>=0; x--)
+        {
+            close (x);
+        }
+
+        /* Open the log file */
+        openlog ("firstdaemon", LOG_PID, LOG_DAEMON);
+    }     
+    
+    
+}
+
+
 void sigchld_handler(int s)
 {
     // waitpid() might overwrite errno, so we save and restore it:
@@ -366,9 +410,18 @@ void handle_get(int server_fd, int client_fd, Parser * request, string str_from_
     SEND(client_fd, str_toSend_toClient.length() + 1, str_toSend_toClient.c_str());
 }
 
-string handle_post(int server_fd, int client_fd, Parser * input, string str_from_client){
-    
-    return NULL;
+void handle_post(int server_fd, int client_fd, Parser * input, string str_from_client){
+    if(send(server_fd, str_from_client.c_str(), str_from_client.size(), 0) == -1){
+        perror("send");
+    }
+    pair<string, string> header_content_pair;
+    string serverResponse;
+    //receive from server, need to use a seperate function to get the response
+    header_content_pair = RECEIVE(server_fd, client_fd);
+    serverResponse.append(header_content_pair.first);
+    serverResponse.append(header_content_pair.second);
+    send(client_fd, serverResponse.c_str(), serverResponse.length(), 0);
+    cout << "POST finished!" << endl;
 
 }
 
@@ -526,6 +579,7 @@ void handleThread(int client_fd, int server_fd, map<string, pair<pair<string, st
 
 int main(void)
 {
+    //skeleton_daemon();
     int listen_sockfd, new_fd;  // listen to client on listen_sockfd, new connection on new_fd, talk to server on send_sockfd
     int send_sockfd;
     struct sockaddr_storage their_addr; // connector's address information
@@ -577,6 +631,8 @@ int main(void)
         // myThread.detach();
     }
     close(listen_sockfd);
+    // syslog (LOG_NOTICE, "First daemon terminated.");
+    // closelog();
     return 0;
 }
 
