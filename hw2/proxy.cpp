@@ -18,6 +18,9 @@
 #include <thread> 
 #include <mutex> 
 #include <fstream>
+#include <sys/stat.h>
+#include <syslog.h>
+
 #define IN_PORT "12345"  // the port users will be connecting to
 #define MAXDATASIZE 700000
 
@@ -258,7 +261,7 @@ void SEND(int server_fd, int numBytes_to_send, const char * charToSend) {
 
 //do not need str_from_client           <url, <<header, content>, <input_time, max_age>>>
 void handle_get(int server_fd, int client_fd, Parser * request, string str_from_client, map<string, pair<pair<string, string>, pair<time_t, time_t> > > &cache){
-
+    remove_from_cache(cache);
     //This is the key of the cache
     string url = request->url;
     //update cache length
@@ -293,9 +296,6 @@ void handle_get(int server_fd, int client_fd, Parser * request, string str_from_
         //Mon, 18 Jul 2016 16:06:00 GMT              
         strptime(response->date.c_str(), "%a, %d %b %Y %H:%M:%S", &entry_time);
         entry_time.tm_hour -= 5;
-        if(response->age != "") {
-            entry_time.tm_sec -= stoi(response->age);
-        }
         char buf[50];
         time_t tm = mktime(&entry_time);
         // cout << "entry time: " << ctime_r(&tm, buf);
@@ -303,6 +303,9 @@ void handle_get(int server_fd, int client_fd, Parser * request, string str_from_
         //calculate the maximum living time of the cache          
         if(response->max_age != "") {
             entry_age.tm_sec = entry_time.tm_sec + stoi(response->max_age);
+            if(response->age != "") {
+                entry_age.tm_sec -= stoi(response->age);
+            }
         }
         //insert the <url, <<header, content>, <input_time, max_time>>> entry into the cache
         mtx.lock();
@@ -329,7 +332,11 @@ void handle_get(int server_fd, int client_fd, Parser * request, string str_from_
         cached_header->setArguments(current_responseTime_pair.first.first, "Response"); 
         bool must_revalidate = cached_header->must_revalidate;
 
-        if(must_revalidate || (difftime(current_responseTime_pair.second.second, mktime(current_time)) <= 0) || (difftime(mktime(&expired_time), mktime(current_time)) <= 0) ) {           //stale
+
+
+
+
+        if(must_revalidate || (difftime(current_responseTime_pair.second.second, mktime(current_time)) <= 0) || (difftime(mktime(&expired_time), mktime(current_time)) <= 0) ) {           //for revalidation
             struct tm* expiredAt;
             if(difftime(mktime(&expired_time), current_responseTime_pair.second.second) < 0 ) {
                 expiredAt = &expired_time;
@@ -354,9 +361,7 @@ void handle_get(int server_fd, int client_fd, Parser * request, string str_from_
                 // cout << "append date" << endl;
                 stringToSend.append("If-Modified-Since: " + cached_header->last_modified + "\r\n");
             }
-            if(cached_header->last_modified != "" && cached_header->etag != "") {
-                LOG(getThreadID() + ": in cache, requires validation\n");
-            }
+            LOG(getThreadID() + ": in cache, requires validation\n");
             
             stringToSend.append("\r\n"); 
             // cout << stringToSend << endl;
@@ -373,13 +378,13 @@ void handle_get(int server_fd, int client_fd, Parser * request, string str_from_
                 //Mon, 18 Jul 2016 16:06:00 GMT              
                 strptime(header->date.c_str(), "%a, %d %b %Y %H:%M:%S", &entry_time);
                 entry_time.tm_hour -= 5;
-                if(header->age != "") {
-                    entry_time.tm_sec -= stoi(header->age);
-                }
                 struct tm entry_age = entry_time;
                 //calculate the maximum living time of the cache          
                 if(header->max_age != "") {
                     entry_age.tm_sec = entry_time.tm_sec + stoi(header->max_age);
+                    if(header->age != "") {
+                        entry_age.tm_sec -= stoi(header->age);
+                    }
                 }
                 //insert the <url, <<header, content>, <input_time, max_time>>> entry into the cache
                 mtx.lock();
@@ -392,6 +397,8 @@ void handle_get(int server_fd, int client_fd, Parser * request, string str_from_
             }
             else {
                 LOG(getThreadID() + ":  not cacheable because " + header->status_code + "\n");
+                string str_to_send = header_content_pair.first + header_content_pair.second;
+                SEND(client_fd, str_to_send.length() + 1, str_to_send.c_str());
                 return;
             }
         }
@@ -579,7 +586,7 @@ void handleThread(int client_fd, int server_fd, map<string, pair<pair<string, st
 
 int main(void)
 {
-    //skeleton_daemon();
+    skeleton_daemon();
     int listen_sockfd, new_fd;  // listen to client on listen_sockfd, new connection on new_fd, talk to server on send_sockfd
     int send_sockfd;
     struct sockaddr_storage their_addr; // connector's address information
@@ -631,8 +638,8 @@ int main(void)
         // myThread.detach();
     }
     close(listen_sockfd);
-    // syslog (LOG_NOTICE, "First daemon terminated.");
-    // closelog();
+    syslog (LOG_NOTICE, "First daemon terminated.");
+    closelog();
     return 0;
 }
 

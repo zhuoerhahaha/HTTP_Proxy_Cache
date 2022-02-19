@@ -1,28 +1,30 @@
-139686375257856: "GET http://rabihyounes.com/ HTTP/1.1" from 107.15.250.95 @ Fri Feb 18 21:08:39 2022
+139669679412992: "GET http://rabihyounes.com/ HTTP/1.1" from 107.15.250.95 @ Fri Feb 18 21:32:09 2022
 
-139686375257856: not in cache
+139669679412992: not in cache
 
-139686375257856: Requesting "GET http://rabihyounes.com/ HTTP/1.1" from rabihyounes.com
+139669679412992: Requesting "GET http://rabihyounes.com/ HTTP/1.1" from rabihyounes.com
 
-139686375257856: Received "HTTP/1.1 200 OK " from http://rabihyounes.com/
+139669679412992: Received "HTTP/1.1 200 OK " from http://rabihyounes.com/
 
-139686375257856: "GET http://rabihyounes.com/ HTTP/1.1" from 107.15.250.95 @ Fri Feb 18 21:08:45 2022
+139669679412992: "GET http://rabihyounes.com/ HTTP/1.1" from 107.15.250.95 @ Fri Feb 18 21:32:52 2022
 
-139686375257856: in cache, but expired at ??? Apr-354677420 1481407739:00:1645236519 1900
+139669679412992: in cache, valid
 
-139686375257856: Requesting "GET http://rabihyounes.com/ HTTP/1.1" from rabihyounes.com
+139669679412992: "GET http://rabihyounes.com/ HTTP/1.1" from 107.15.250.95 @ Fri Feb 18 21:32:55 2022
 
-139686375257856: Received "HTTP/1.1 304 Not Modified " from rabihyounes.com
+139669679412992: in cache, but expired at ??? Dec1976583636 625085179:32:09 5484963
 
-139686375257856:  cached no need to update
+139669679412992: Requesting "GET http://rabihyounes.com/ HTTP/1.1" from rabihyounes.com
 
-139686375257856: "GET http://rabihyounes.com/ HTTP/1.1" from 107.15.250.95 @ Fri Feb 18 21:08:58 2022
+139669679412992: Received "HTTP/1.1 304 Not Modified " from rabihyounes.com
 
-139686375257856: in cache, but expired at ??? Apr-354677420 1481407739:00:1645236519 1900
+139669679412992: cached no need to update
 
-139686375257856: Requesting "GET http://rabihyounes.com/ HTTP/1.1" from rabihyounes.com
+139669679412992: "GET http://go.com/ HTTP/1.1" from 107.15.250.95 @ Fri Feb 18 21:33:13 2022
 
-139686375257856: Received "HTTP/1.1 304 Not Modified " from rabihyounes.com
+139669679412992: not in cache
 
-139686375257856:  cached no need to update
+139669679412992: Requesting "GET http://go.com/ HTTP/1.1" from go.com
+
+139669679412992: Received "HTTP/1.1 200 OK " from http://go.com/
 
