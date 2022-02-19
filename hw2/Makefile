@@ -10,4 +10,4 @@ proxy: proxy.cpp
 	$(CC) $(CFLAGS) -o $@ proxy.cpp Parser.cpp  -lpthread
 
 clean:
-	rm -f client server proxy *.o 
+	rm -f client server proxy *.o proxy.log

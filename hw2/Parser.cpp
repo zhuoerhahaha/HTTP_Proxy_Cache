@@ -141,8 +141,11 @@ void Parser::setArguments(string input, string type) {
         end = inputCopy.find("\r\n");
         header = input.substr(start, (end - start));
         vector<string> headerVec = split(header, ' ');
-        http_version = headerVec[0];
+        http_version = headerVec[0];   
         status_code = headerVec[1];
+        for(int i = 2; i < headerVec.size(); i++) {
+            status_msg.append(headerVec[i] + " ");
+        }
         // parse Etag
         start = inputCopy.find("ETAG");
         if(start != string::npos) {
@@ -221,8 +224,7 @@ void Parser::setArguments(string input, string type) {
             end = inputCopy.find("\r\n", start);
             expires = input.find(start, (end - start));
         }
-        // cout << etag << endl;
-        // cout << last_modified << endl;
+        // cout << input << "\n\n\n" << endl;
     }
 
     // cout << "##########\n";

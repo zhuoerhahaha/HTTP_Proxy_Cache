@@ -57,7 +57,6 @@ string getThreadID() {
 }
 
 
-//erronous!!!
 void handle_connect(int server_fd, int client_fd, Parser * input, string content_from_client){
     string str = "HTTP/1.1 200 OK\r\n\r\n";
     send(client_fd, "HTTP/1.1 200 OK\r\n\r\n", 21, 0);
@@ -122,35 +121,6 @@ void handle_connect(int server_fd, int client_fd, Parser * input, string content
 }
 
 
-// void handle_connect(int server_fd, int client_fd, Parser * input, string content_from_client) {
-//   send(client_fd, "HTTP/1.1 200 OK\r\n\r\n", 19, 0);
-//   fd_set readfds;
-//   int nfds = server_fd > client_fd ? server_fd + 1 : client_fd + 1;
-//   while (1) {
-//     FD_ZERO(&readfds);
-//     FD_SET(server_fd, &readfds);
-//     FD_SET(client_fd, &readfds);
-//     select(nfds, &readfds, NULL, NULL, NULL);
-//     int fd[2] = {server_fd, client_fd};
-//     int len;
-//     for (int i = 0; i < 2; i++) {
-//       char message[65536] = {0};
-//       if (FD_ISSET(fd[i], &readfds)) {
-//         len = recv(fd[i], message, sizeof(message), 0);
-//         if (len <= 0) {
-//           return;
-//         }
-//         else {
-//           if (send(fd[1 - i], message, len, 0) <= 0) {
-//             return;
-//           }
-//         }
-//       }
-//     }
-//   }
-// }
-
-
 
 void LOG(string msg) {
     mtx.lock();
@@ -212,7 +182,7 @@ pair<string, string> RECEIVE(int server_fd, int client_fd) {
             // cout << content << endl;
         }
     } 
-    else {
+    else if(response->content_length != "") {
         content = str_from_server.substr(start);
         int already_received = content.length() - 2;
         int byteLeft = stoi(response->content_length) - already_received;
@@ -251,8 +221,8 @@ void handle_get(int server_fd, int client_fd, Parser * request, string str_from_
 
     mtx.lock();
     if(cache.find(url) == cache.end()) {                    //no such url in map, need to get from server and store the response into cache
-        LOG(getThreadID() + ": not in cache\n");
         mtx.unlock();
+        LOG(getThreadID() + ": not in cache\n");
         pair<string, string> header_content_pair;           //the header-content string pair of the response from server
         string serverResponse;
         //send the data to server
@@ -269,7 +239,7 @@ void handle_get(int server_fd, int client_fd, Parser * request, string str_from_
         serverResponse.append(header_content_pair.second);
         //parse the response header
         response->setArguments(header_content_pair.first, "Response");
-        LOG(getThreadID() + ": Received \"" + response->http_version + response->status_code + response->status_msg + "\" from " +response->host + "\n");
+        LOG(getThreadID() + ": Received \"" + response->http_version + " " + response->status_code + " " + response->status_msg + "\" from " + request->url + "\n");
         if(response->status_code != "200" || response->no_store) {
             LOG(getThreadID() + ": not cacheable because " + response->status_code + "\n");
             SEND(client_fd, serverResponse.length() + 1, serverResponse.c_str());
@@ -351,7 +321,7 @@ void handle_get(int server_fd, int client_fd, Parser * request, string str_from_
             pair<string, string> header_content_pair = RECEIVE(server_fd, client_fd);
             Parser * header = new Parser();
             header->setArguments(header_content_pair.first, "Response");
-            LOG(getThreadID() + ": Received \"" + header->http_version + header->status_code + header->status_msg + "\" from " +header->host + "\n");
+            LOG(getThreadID() + ": Received \"" + header->http_version + " " + header->status_code + " " + header->status_msg + "\" from " +request->host + "\n");
             // cout << "Status code: " << header->status_code << endl;
             if(header->status_code == "200") {                        //the response has been updated
                 //get the current time
@@ -373,7 +343,7 @@ void handle_get(int server_fd, int client_fd, Parser * request, string str_from_
                 mtx.unlock();
             }
             else if(header->status_code == "304") {                   //the response has not been updated
-                LOG(getThreadID() + ":  cached no need to update" + "\n");
+                LOG(getThreadID() + ": cached no need to update" + "\n");
                 //donothing
             }
             else {
@@ -577,7 +547,7 @@ int main(void)
         inet_ntop(their_addr.ss_family,
             get_in_addr((struct sockaddr *)&their_addr),
             s, sizeof s);
-        printf("server: got connection from %s\n", s);
+        // printf("server: got connection from %s\n", s);
 
         
 
