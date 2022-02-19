@@ -215,10 +215,14 @@ pair<string, string> RECEIVE(int server_fd, int client_fd) {
             if(recv(server_fd, currBuff, sizeof(currBuff), 0) == 0) {
                 break;
             }
-            string currentStr = string(currBuff);
-            content.append(currentStr);
+            // string currentStr = string(currBuff);
+            // content.append(currentStr);
 
-            if(currentStr.find("0\r\n\r\n") != string::npos) {
+            // if(currentStr.find("0\r\n\r\n") != string::npos) {
+            //     break;
+            // }
+            content.append(currBuff);
+            if(currBuff == "0\r\n\r\n"){
                 break;
             }
         }

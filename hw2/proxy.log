@@ -1,8 +1,6 @@
-140072092186368: "GET http://www.httpwatch.com/httpgallery/chunked/chunkedimage.aspx HTTP/1.1" from 107.15.250.95 @ Sat Feb 19 00:11:52 2022
+140419549374208: "GET http://www.httpwatch.com/httpgallery/chunked/chunkedimage.aspx HTTP/1.1" from 107.15.250.95 @ Sat Feb 19 13:02:28 2022
 
-140072092186368: not in cache
+140419549374208: not in cache
 
-140072092186368: Requesting "GET http://www.httpwatch.com/httpgallery/chunked/chunkedimage.aspx HTTP/1.1" from www.httpwatch.com
-
-140072092186368: Received "HTTP/1.1 200 OK " from http://www.httpwatch.com/httpgallery/chunked/chunkedimage.aspx
+140419549374208: Requesting "GET http://www.httpwatch.com/httpgallery/chunked/chunkedimage.aspx HTTP/1.1" from www.httpwatch.com
 
