@@ -1,5 +1,5 @@
 CC=g++
-CFLAGS= -Wextra -g 
+CFLAGS= -g 
 
 all: client proxy
 

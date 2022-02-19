@@ -149,7 +149,7 @@ void handle_connect(int server_fd, int client_fd, Parser * input, string content
                 string str(buff);
                 // cout << "I received: " << buff << "\n" << endl;
                 if (len <= 0) {
-                    LOG(getThreadID() + ": Tunnel closed");
+                    LOG(getThreadID() + ": Tunnel closed\n");
                     return;
                 }
                 else {
@@ -216,16 +216,8 @@ pair<string, string> RECEIVE(int server_fd, int client_fd) {
                 break;
             }
             string currentStr = string(currBuff);
-            int end = currentStr.find("\r\n");
-            if(end == string::npos) {
-                perror("end");
-                exit(1);
-            }
-            int dataLength = stoi(currentStr.substr(0, end), nullptr, 16);
             content.append(currentStr);
-            if(dataLength == 0) {
-                break;
-            }
+
             if(currentStr.find("0\r\n\r\n") != string::npos) {
                 break;
             }
@@ -340,7 +332,7 @@ void handle_get(int server_fd, int client_fd, Parser * request, string str_from_
             expired_time.tm_hour -= 5;
             cached_header->setArguments(current_responseTime_pair.first.first, "Response"); 
         }       
-        bool must_revalidate = cached_header->must_revalidate;
+        bool must_revalidate = cached_header->no_cache;
         cout <<"EXPIRES AT: " << asctime(&expired_time);
 
 
