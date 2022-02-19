@@ -23,7 +23,7 @@
 
 #define IN_PORT "12345"  // the port users will be connecting to
 #define MAXDATASIZE 700000
-
+#define CACHE_MAXSIZE 1
 
 #define BACKLOG 10   // how many pending connections queue will hold
 ofstream logFile("./proxy.log");
@@ -256,6 +256,23 @@ void SEND(int server_fd, int numBytes_to_send, const char * charToSend) {
         }
     }while(byteSent < numBytes_to_send);
     return;
+}
+
+void remove_from_cache(map<string, pair<pair<string, string>, pair<time_t, time_t> > > &cache){
+    if(cache.size() >= CACHE_MAXSIZE){
+        time_t target_time = 2147483647;
+        string url = "";
+        map<string, pair<pair<string, string>, pair<time_t, time_t> > >::iterator it;
+        for(it = cache.begin(); it != cache.end(); it++ ){
+            if(it->second.second.first < target_time){
+                target_time = it->second.second.first;
+                url = it->first;
+            }
+        }
+        if(url != ""){
+            cache.erase(url);
+        }
+    } 
 }
 
 
