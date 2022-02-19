@@ -103,6 +103,12 @@ string getThreadID() {
     return ss.str();
 }
 
+void LOG(string msg) {
+    mtx.lock();
+    cout << msg;
+    logFile << msg << endl;
+    mtx.unlock();
+}
 
 void handle_connect(int server_fd, int client_fd, Parser * input, string content_from_client){
     string str = "HTTP/1.1 200 OK\r\n\r\n";
@@ -143,6 +149,7 @@ void handle_connect(int server_fd, int client_fd, Parser * input, string content
                 string str(buff);
                 // cout << "I received: " << buff << "\n" << endl;
                 if (len <= 0) {
+                    LOG(getThreadID() + ": Tunnel closed");
                     return;
                 }
                 else {
@@ -151,14 +158,10 @@ void handle_connect(int server_fd, int client_fd, Parser * input, string content
                         int num = send(fd[1 - i], buff + byteSent, len - byteSent, 0);
                         byteSent += num;
                         if(num <= 0) {
+                            LOG(getThreadID() + ": Tunnel closed");
                             return;
                         }
                     }while(byteSent < len);
-
-                    // if (send(fd[1 - i], buff, len, 0) <= 0) {
-                    //     return;
-                    // }
-                    // cout << "Byte sent: " << byteSent << endl;
                 }
             }
             // cout << buff << endl;
@@ -169,12 +172,7 @@ void handle_connect(int server_fd, int client_fd, Parser * input, string content
 
 
 
-void LOG(string msg) {
-    mtx.lock();
-    cout << msg;
-    logFile << msg << endl;
-    mtx.unlock();
-}
+
 
 
 struct tm * getCurrentTime() {
@@ -214,7 +212,9 @@ pair<string, string> RECEIVE(int server_fd, int client_fd) {
         content.append(str_from_server.substr(start));
         while(true) {
             memset(currBuff, 0, sizeof(currBuff));
-            recv(server_fd, currBuff, sizeof(currBuff), 0);
+            if(recv(server_fd, currBuff, sizeof(currBuff), 0) == 0) {
+                break;
+            }
             string currentStr = string(currBuff);
             int end = currentStr.find("\r\n");
             if(end == string::npos) {
@@ -226,8 +226,11 @@ pair<string, string> RECEIVE(int server_fd, int client_fd) {
             if(dataLength == 0) {
                 break;
             }
-            // cout << content << endl;
+            if(currentStr.find("0\r\n\r\n") != string::npos) {
+                break;
+            }
         }
+        cout << content.length() << endl;
     } 
     else if(response->content_length != "") {
         content = str_from_server.substr(start);
@@ -261,7 +264,7 @@ void SEND(int server_fd, int numBytes_to_send, const char * charToSend) {
 
 //do not need str_from_client           <url, <<header, content>, <input_time, max_age>>>
 void handle_get(int server_fd, int client_fd, Parser * request, string str_from_client, map<string, pair<pair<string, string>, pair<time_t, time_t> > > &cache){
-    remove_from_cache(cache);
+    // remove_from_cache(cache);
     //This is the key of the cache
     string url = request->url;
     //update cache length
@@ -290,6 +293,7 @@ void handle_get(int server_fd, int client_fd, Parser * request, string str_from_
         if(response->status_code != "200" || response->no_store) {
             LOG(getThreadID() + ": not cacheable because " + response->status_code + "\n");
             SEND(client_fd, serverResponse.length() + 1, serverResponse.c_str());
+            LOG(getThreadID() + ": Responding \"" + response->http_version + " " + response->status_code + " " + response->status_msg + "\n");
             return;
         }
         struct tm entry_time; 
@@ -326,12 +330,18 @@ void handle_get(int server_fd, int client_fd, Parser * request, string str_from_
         pair<pair<string, string>, pair<time_t, time_t>> current_responseTime_pair = cache[url];
         //max_age - current_time
         Parser * cached_header = new Parser();
-        //Mon, 18 Jul 2016 16:06:00 GMT              
-        strptime(cached_header->expires.c_str(), "%a, %d %b %Y %H:%M:%S", &expired_time);
-        expired_time.tm_hour -= 5;
-        cached_header->setArguments(current_responseTime_pair.first.first, "Response"); 
+        //Mon, 18 Jul 2016 16:06:00 GMT 
+        if(cached_header->expires == "") {
+            expired_time = *current_time;
+            expired_time.tm_year += 2000;
+        }      
+        else {
+            strptime(cached_header->expires.c_str(), "%a, %d %b %Y %H:%M:%S", &expired_time);
+            expired_time.tm_hour -= 5;
+            cached_header->setArguments(current_responseTime_pair.first.first, "Response"); 
+        }       
         bool must_revalidate = cached_header->must_revalidate;
-
+        cout <<"EXPIRES AT: " << asctime(&expired_time);
 
 
 
@@ -390,6 +400,7 @@ void handle_get(int server_fd, int client_fd, Parser * request, string str_from_
                 mtx.lock();
                 cache[request->url] = make_pair(header_content_pair, make_pair(mktime(&entry_time), mktime(&entry_age)));
                 mtx.unlock();
+
             }
             else if(header->status_code == "304") {                   //the response has not been updated
                 LOG(getThreadID() + ": cached no need to update" + "\n");
@@ -399,11 +410,14 @@ void handle_get(int server_fd, int client_fd, Parser * request, string str_from_
                 LOG(getThreadID() + ":  not cacheable because " + header->status_code + "\n");
                 string str_to_send = header_content_pair.first + header_content_pair.second;
                 SEND(client_fd, str_to_send.length() + 1, str_to_send.c_str());
+                LOG(getThreadID() + ": Responding \"" + header->http_version + " " + header->status_code + " " + header->status_msg + "\n");
                 return;
             }
+            LOG(getThreadID() + ": Responding \"" + header->http_version + " " + header->status_code + " " + header->status_msg + "\n");
         }
         else {
             LOG(getThreadID() + ": in cache, valid\n");
+            
             //non-stale, directly send to the client
             //get the string of response to sent
             //do nothing but the log
@@ -415,6 +429,7 @@ void handle_get(int server_fd, int client_fd, Parser * request, string str_from_
     // cout << "sending......" << endl;
     mtx.unlock();
     SEND(client_fd, str_toSend_toClient.length() + 1, str_toSend_toClient.c_str());
+
 }
 
 void handle_post(int server_fd, int client_fd, Parser * input, string str_from_client){
