@@ -20,6 +20,7 @@
 #include <fstream>
 #include <sys/stat.h>
 #include <syslog.h>
+#include <stdexcept>
 
 #define IN_PORT "12345"  // the port users will be connecting to
 #define MAXDATASIZE 700000
@@ -478,7 +479,9 @@ int connectToServer(const char * host, const char * in_port) {
     if (status != 0) {
         cerr << "Error: cannot get address info for host" << endl;
         cerr << "  (" << host << "," << in_port << ")" << endl;
+        string errorStr = "Error: cannot get address info for host";
         return -1;
+        throw invalid_argument(errorStr);
     } //if
 
     socket_fd = socket(host_info_list->ai_family, 
@@ -486,7 +489,9 @@ int connectToServer(const char * host, const char * in_port) {
                 host_info_list->ai_protocol);
     if (socket_fd == -1) {
         cerr << "Error: cannot create socket" << endl;
+        string errorStr = "Error: cannot create socket";
         cerr << "  (" << host << "," << in_port << ")" << endl;
+        throw invalid_argument(errorStr);
         return -1;
     } //if
     
@@ -496,6 +501,7 @@ int connectToServer(const char * host, const char * in_port) {
     if (status == -1) {
         cerr << "Error: cannot connect to socket" << endl;
         cerr << "  (" << host << "," << in_port << ")" << endl;
+        throw invalid_argument("Error: cannot connect to socket");
         return -1;
     } //if
          
@@ -520,6 +526,7 @@ int setUpServer() {
 
     if ((rv = getaddrinfo(NULL, IN_PORT, &hints, &servinfo)) != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+        throw invalid_argument("getaddrinfo: ");
         return 1;
     }
 
@@ -528,18 +535,21 @@ int setUpServer() {
         if ((sockfd = socket(p->ai_family, p->ai_socktype,
                 p->ai_protocol)) == -1) {
             perror("server: socket");
+            throw invalid_argument("server: socket");
             continue;
         }
 
         if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes,
                 sizeof(int)) == -1) {
             perror("setsockopt");
+            throw invalid_argument("setsockopt");
             exit(1);
         }
 
         if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
             close(sockfd);
             perror("server: bind");
+            throw invalid_argument("server: bind");
             continue;
         }
 
@@ -580,13 +590,22 @@ void handleThread(int client_fd, int server_fd, map<string, pair<pair<string, st
 
     string log = getThreadID() + ": \"" + input->method + " " + input->url + " " + input->http_version + "\" from " + ip_addr + " @ " + asctime(nowTime);
     LOG(log);
-    if(input->method == "GET"){
-        handle_get(server_fd, client_fd, input, content_from_client, cache);
-    } else if(input->method == "CONNECT"){
-        handle_connect(server_fd, client_fd, input, content_from_client);
-    } else if(input->method == "POST"){
-        handle_post(server_fd, client_fd, input, content_from_client);
-    } 
+    try
+    {
+        if(input->method == "GET"){
+            handle_get(server_fd, client_fd, input, content_from_client, cache);
+        } else if(input->method == "CONNECT"){
+            handle_connect(server_fd, client_fd, input, content_from_client);
+        } else if(input->method == "POST"){
+            handle_post(server_fd, client_fd, input, content_from_client);
+        } 
+    }
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << endl;
+    }
+    
+    
     close(client_fd);
     close(server_fd);
     return;
