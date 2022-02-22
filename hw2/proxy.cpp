@@ -21,13 +21,14 @@
 #include <sys/stat.h>
 #include <syslog.h>
 #include <stdexcept>
+#include <algorithm>
 
 #define IN_PORT "12345"  // the port users will be connecting to
 #define MAXDATASIZE 700000
 
 
 #define BACKLOG 10   // how many pending connections queue will hold
-ofstream logFile("./proxy.log");
+ofstream logFile("/proxy.log");
 using namespace std;
 
 mutex mtx;
@@ -72,6 +73,9 @@ static void skeleton_daemon()
         openlog ("firstdaemon", LOG_PID, LOG_DAEMON);
     }     
     
+    else {
+        exit(EXIT_SUCCESS);
+    }
     
 }
 
@@ -211,23 +215,20 @@ pair<string, string> RECEIVE(int server_fd, int client_fd) {
     memset(currBuff, 0, sizeof(currBuff));
     if(response->chunked) {
         content.append(str_from_server.substr(start));
+        char body[MAXDATASIZE];
         while(true) {
             memset(currBuff, 0, sizeof(currBuff));
-            if(recv(server_fd, currBuff, sizeof(currBuff), 0) == 0) {
-                break;
-            }
-            // string currentStr = string(currBuff);
-            // content.append(currentStr);
-
-            // if(currentStr.find("0\r\n\r\n") != string::npos) {
-            //     break;
-            // }
+            int bytes = 0;
+            bytes = recv(server_fd, currBuff, sizeof(currBuff), 0);
             content.append(currBuff);
-            if(currBuff == "0\r\n\r\n"){
+            // strcat(body, currBuff);
+            cout << bytes << "    " << string(currBuff).substr(0, 3) << endl;
+            if(string(body).find("0\r\n\r\n") != string::npos ){
                 break;
             }
         }
-        cout << content.length() << endl;
+        // content.append(string(body));
+        cout << content.size() << endl;
     } 
     else if(response->content_length != "") {
         content = str_from_server.substr(start);
@@ -255,6 +256,24 @@ void SEND(int server_fd, int numBytes_to_send, const char * charToSend) {
             break;
         }
     }while(byteSent < numBytes_to_send);
+    return;
+}
+
+void remove_from_cache(map<string, pair<pair<string, string>, pair<time_t, time_t> > > &cache) {
+    if(cache.size() > 20) {
+        int index = 0;
+        time_t least_time = cache[0].second.first;
+        
+        for(auto it = cache.begin(); it != cache.end(); ++it) {
+            if(it->second.second.first < least_time) {
+                least_time = it->second.second.first;
+                index = distance(cache.begin(), it);
+            }
+        }
+        auto it = cache.begin();
+        std::advance(it, index);
+        cache.erase(it);
+    }
     return;
 }
 
@@ -616,7 +635,7 @@ void handleThread(int client_fd, int server_fd, map<string, pair<pair<string, st
 
 int main(void)
 {
-    skeleton_daemon();
+    // skeleton_daemon();
     int listen_sockfd, new_fd;  // listen to client on listen_sockfd, new connection on new_fd, talk to server on send_sockfd
     int send_sockfd;
     struct sockaddr_storage their_addr; // connector's address information
@@ -674,15 +693,4 @@ int main(void)
 }
 
 
-//handle_connect: cannot receive anything from server/client, how to implement select
 
-//hendle_get: at 189, implement revalidation for expired/fresh cache data
-
-//need to resolve chunked data reading at 78
-
-
-
-//question: CONNECT will return 400
-//          connect to server host will break when using http
-
-//when receving chunked data
