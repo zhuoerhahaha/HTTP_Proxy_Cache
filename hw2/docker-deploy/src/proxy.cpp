@@ -21,24 +21,70 @@
 #include <sys/stat.h>
 #include <syslog.h>
 #include <stdexcept>
+#include <cstdio>
 #include <algorithm>
+#include <fcntl.h>
 
 #define IN_PORT "12345"  // the port users will be connecting to
 #define MAXDATASIZE 700000
 
 
 #define BACKLOG 10   // how many pending connections queue will hold
-ofstream logFile("/proxy.log");
+ofstream logFile("./proxy.log");
 using namespace std;
 
 mutex mtx;
 
 static void skeleton_daemon()
 {
-    // pre-fork
+    // // pre-fork
     pid_t pid = fork();
     
-    /* An error occurred */
+    // /* An error occurred */
+    // if (pid < 0){
+    //     perror("pid < 0");
+    //     exit(EXIT_FAILURE);
+    // }    
+    // if (pid != 0) {
+    //     exit(EXIT_SUCCESS);
+    // }
+    // if (setsid() < 0) {
+    //     perror("Error");
+    //     exit(EXIT_FAILURE);
+    // }
+    // pid = fork();
+    // if(pid < 0) {
+    //     perror("Error");
+    //     exit(EXIT_FAILURE);
+    // }
+
+
+    // char  command[] = {'.', '/', 'p', 'r', 'o', 'x', 'y', '\0'};
+    // char * argument_list[] = {command, NULL};
+    // int execvp_status = execvp(command, argument_list);
+    // if(execvp_status == -1) {
+    //     printf("Process did not terminate correctly\n");
+    //     exit(1);
+    // }
+
+    // if(pid != 0) {
+    //     exit(EXIT_SUCCESS);
+    // }
+
+    // int dev_null_fd = open("/dev/null", O_RDWR);
+    // if (dev_null_fd  == -1) {
+    //     perror("Error");
+    //     exit(EXIT_FAILURE);
+    // }
+
+    // int ret_in = dup2(dev_null_fd, 0);
+    // int ret_out = dup2(dev_null_fd, 1);
+    // int ret_err = dup2(dev_null_fd, 2);
+
+    // close(0);
+    // close(1);
+    // close(2);
+        /* An error occurred */
     if (pid < 0){
         perror("pid < 0");
         exit(EXIT_FAILURE);
@@ -76,6 +122,7 @@ static void skeleton_daemon()
     else {
         exit(EXIT_SUCCESS);
     }
+
     
 }
 
@@ -635,7 +682,7 @@ void handleThread(int client_fd, int server_fd, map<string, pair<pair<string, st
 
 int main(void)
 {
-    // skeleton_daemon();
+    skeleton_daemon();
     int listen_sockfd, new_fd;  // listen to client on listen_sockfd, new connection on new_fd, talk to server on send_sockfd
     int send_sockfd;
     struct sockaddr_storage their_addr; // connector's address information

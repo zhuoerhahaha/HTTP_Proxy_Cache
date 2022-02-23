@@ -1,0 +1,8 @@
+danger log:
+Current bugs: Does not support GET chunked data. When we are trying to use Daemon, we cannot write to the file, possibily due to permission issue.
+              We did not include all the cache-control. Missed ones: max-stale, min-fresh, no-transform, only-if-cached, stale-if-error and immutable
+
+Fixed issue: When using CONNECT method, we did not consider the header ends with \r\n. Fixed the parsing issue.
+             When resending the validation info, we originally sent the header of the respond header, instead of request header.
+             When building the Daemon, we did not close the parent process. Fixed the bug so that the children/Daemon can be detached from the parent process
+             

@@ -1,8 +1,0 @@
-GET http://www.man7.org/linux/man-pages/man2/recv.2.html HTTP/1.1
-Host: www.man7.org
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13; rv:58.0) Gecko/20100101 Firefox/58.0
-Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
-Accept-Language: en-US,en;q=0.5
-Accept-Encoding: gzip, deflate
-Connection: keep-alive
-Upgrade-Insecure-Requests: 1
