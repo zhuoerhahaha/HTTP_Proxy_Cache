@@ -8,5 +8,5 @@ make
 
 while true
 do
-    sleep 1
+    continue
 done

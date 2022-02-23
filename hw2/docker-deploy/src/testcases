@@ -1,0 +1,215 @@
+==========================================
+METHOD---CONNECT & WARNNING message
+==========================================
+0: "CONNECT www.google.com:443 HTTP/1.1" from 107.15.250.95 @ Wed Feb 23 14:41:17 2022
+
+0: Tunnel closed
+
+1: "CONNECT www.google.com:443 HTTP/1.1" from 107.15.250.95 @ Wed Feb 23 14:41:17 2022
+
+1: Tunnel closed
+
+2: "CONNECT www.google.com:443 HTTP/1.1" from 107.15.250.95 @ Wed Feb 23 14:41:17 2022
+
+2: Tunnel closed
+
+3: "CONNECT www.google.com:443 HTTP/1.1" from 107.15.250.95 @ Wed Feb 23 14:41:17 2022
+
+3: Tunnel closed
+
+4: "CONNECT www.google.com:443 HTTP/1.1" from 107.15.250.95 @ Wed Feb 23 14:41:17 2022
+
+4: Tunnel closed
+
+5: "CONNECT cdn.syndication.twimg.com:443 HTTP/1.1" from 107.15.250.95 @ Wed Feb 23 14:41:17 2022
+
+6: "CONNECT www.google.com:443 HTTP/1.1" from 107.15.250.95 @ Wed Feb 23 14:41:17 2022
+
+7: "CONNECT adservice.google.com:443 HTTP/1.1" from 107.15.250.95 @ Wed Feb 23 14:41:18 2022
+
+8: "CONNECT googleads.g.doubleclick.net:443 HTTP/1.1" from 107.15.250.95 @ Wed Feb 23 14:41:18 2022
+
+9: "CONNECT www.google.com:443 HTTP/1.1" from 107.15.250.95 @ Wed Feb 23 14:41:19 2022
+
+9: Tunnel closed
+
+10: "CONNECT www.google.com:443 HTTP/1.1" from 107.15.250.95 @ Wed Feb 23 14:41:19 2022
+
+10: Tunnel closed
+
+11: "CONNECT www.google.com:443 HTTP/1.1" from 107.15.250.95 @ Wed Feb 23 14:41:20 2022
+
+11: Tunnel closed
+
+12: "CONNECT www.google.com:443 HTTP/1.1" from 107.15.250.95 @ Wed Feb 23 14:41:21 2022
+
+12: Tunnel closed
+
+13: "CONNECT www.google.com:443 HTTP/1.1" from 107.15.250.95 @ Wed Feb 23 14:41:21 2022
+
+
+
+
+
+
+
+
+===========================================
+METHOD---GET
+===========================================
+---------------------------------------------------
+TEST CASE: basic http 
+http://rabihyounes.com/#
+----------------------------------------------------
+0: "GET http://rabihyounes.com/ HTTP/1.1" from 107.15.250.95 @ Wed Feb 23 14:40:07 2022
+
+0: not in cache
+
+0: Requesting "GET http://rabihyounes.com/ HTTP/1.1" from rabihyounes.com
+
+0: Received "HTTP/1.1 200 OK " from http://rabihyounes.com/
+
+0: Responding "HTTP/1.1 200 OK 
+
+0: Cached, expires at: Wed Feb 23 21:40:07 2022
+
+
+
+
+
+
+
+---------------------------------------------------
+TEST CASE: in-cache valid
+http://people.duke.edu/~bmr23/ece568/class.html
+---------------------------------------------------
+0: "GET http://rabihyounes.com/ HTTP/1.1" from 107.15.250.95 @ Wed Feb 23 14:52:51 2022
+
+0: not in cache
+
+0: Requesting "GET http://rabihyounes.com/ HTTP/1.1" from rabihyounes.com
+
+0: Received "HTTP/1.1 200 OK " from http://rabihyounes.com/
+
+0: Responding "HTTP/1.1 200 OK 
+
+0: Cached, expires at: Wed Feb 23 21:52:51 2022
+
+1: "GET http://rabihyounes.com/ HTTP/1.1" from 107.15.250.95 @ Wed Feb 23 14:52:54 2022
+
+1: in cache, valid
+
+1: Responding "HTTP/1.1 200 OK"
+
+
+
+
+
+
+
+
+--------------------------------------------------
+TEST CASE: Chunked Message
+http://www.httpwatch.com/httpgallery/chunked/chunkedimage.aspx
+--------------------------------------------------
+0: "GET http://www.httpwatch.com/httpgallery/chunked/chunkedimage.aspx HTTP/1.1" from 107.15.250.95 @ Wed Feb 23 15:11:53 2022
+
+0: not in cache
+
+0: Requesting "GET http://www.httpwatch.com/httpgallery/chunked/chunkedimage.aspx HTTP/1.1" from www.httpwatch.com
+
+0: Received "HTTP/1.1 200 OK " from http://www.httpwatch.com/httpgallery/chunked/chunkedimage.aspx
+
+0: Responding "HTTP/1.1 200 OK 
+
+0: Cached, expires at: Wed Feb 23 20:11:53 2022
+
+1: "GET http://www.httpwatch.com/httpgallery/chunked/chunkedimage.aspx HTTP/1.1" from 107.15.250.95 @ Wed Feb 23 15:11:58 2022
+
+1: in cache, but expired at Wed Feb 23 15:11:58 4022
+
+1: in cache, requires validation
+
+1: Requesting "GET http://www.httpwatch.com/httpgallery/chunked/chunkedimage.aspx HTTP/1.1" from www.httpwatch.com
+
+1: Received "HTTP/1.1 200 OK " from www.httpwatch.com
+
+1: Responding "HTTP/1.1 200 OK 
+
+1: Cached, expires at: Wed Feb 23 19:11:57 2022
+
+
+
+--------------------------------------------------
+TEST CASE: "no-store"
+http://www.mocky.io/v2/5e58a7d92f0000851296205a
+-Content: Cache-Control: no-store
+--------------------------------------------------
+
+
+
+--------------------------------------------------
+TEST CASE: "Max-age"
+go.com
+-Action: 
+- Click the link three times, then wait for 5 to 20 miniutes(depends) then click the 
+- second time.
+--------------------------------------------------------
+0: "GET http://go.com/ HTTP/1.1" from 107.15.250.95 @ Wed Feb 23 17:31:46 2022
+
+0: not in cache
+
+0: Requesting "GET http://go.com/ HTTP/1.1" from go.com
+
+0: Received "HTTP/1.1 200 OK " from http://go.com/
+
+0: Responding "HTTP/1.1 200 OK 
+
+0: Cached, expires at: Wed Feb 23 22:11:47 2022
+
+
+
+3: "GET http://go.com/ HTTP/1.1" from 107.15.250.95 @ Wed Feb 23 17:38:53 2022
+
+3: in cache, but expired at Wed Feb 23 17:38:53 4022
+
+3: in cache, requires validation
+
+3: Requesting "GET http://go.com/ HTTP/1.1" from go.com
+
+3: Received "HTTP/1.1 200 OK " from go.com
+
+3: Responding "HTTP/1.1 200 OK 
+
+3: Cached, expires at: Wed Feb 23 22:05:38 2022
+
+
+
+
+
+--------------------------------------------------
+TEST CASE: "Expires"
+http://www.mocky.io/v2/5e589a932f0000bd0c962006
+-Content: Expires: Fri, 28 Feb 2021 04:38:11 GMT
+--------------------------------------------------
+
+
+
+
+
+
+
+=================================
+METHOD---POST
+================================
+--------------------------------------------------
+TEST CASE:
+http://httpbin.org/forms/post
+--------------------------------------------------
+0: "POST http://httpbin.org/post HTTP/1.1" from 107.15.250.95 @ Wed Feb 23 17:01:36 2022
+
+0: Requesting "POST http://httpbin.org/post HTTP/1.1" from httpbin.org
+
+0: Received "HTTP/1.1 200 OK " from httpbin.org
+
+0: Responding "HTTP/1.1 200 OK 

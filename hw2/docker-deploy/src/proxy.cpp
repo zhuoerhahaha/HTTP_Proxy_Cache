@@ -30,7 +30,8 @@
 
 
 #define BACKLOG 10   // how many pending connections queue will hold
-ofstream logFile("./proxy.log");
+// ofstream logFile("/var/log/erss/proxy.log");
+ofstream logFile("/var/log/erss/proxy.log");
 using namespace std;
 
 mutex mtx;
@@ -38,91 +39,46 @@ mutex mtx;
 static void skeleton_daemon()
 {
     // // pre-fork
-    pid_t pid = fork();
+    // pid_t pid = fork();
     
-    // /* An error occurred */
+
     // if (pid < 0){
     //     perror("pid < 0");
     //     exit(EXIT_FAILURE);
     // }    
-    // if (pid != 0) {
-    //     exit(EXIT_SUCCESS);
-    // }
-    // if (setsid() < 0) {
-    //     perror("Error");
+    // else if(pid == 0){
+    //     /* On success: The child process becomes session leader */
+    //     if (setsid() < 0)
     //     exit(EXIT_FAILURE);
-    // }
-    // pid = fork();
-    // if(pid < 0) {
-    //     perror("Error");
-    //     exit(EXIT_FAILURE);
-    // }
+    //     /* Catch, ignore and handle signals */
+    //     /*TODO: Implement a working signal handler */
+    //     signal(SIGHUP, SIG_IGN);
+    //     /* Fork off for the second time*/
+    //     pid = fork();
+    //     if(pid < 0){
+    //         perror("pid < 0");
+    //         exit(EXIT_FAILURE);
+    //     }
+    //       /* Set new file permissions */
+    //     umask(0);
+    //     /* Change the working directory to the root directory */
+    //     /* or another appropriated directory */
+    //     chdir("/");
 
+    //     /* Close all open file descriptors */
+    //     int x;
+    //     for (x = sysconf(_SC_OPEN_MAX); x>=0; x--)
+    //     {
+    //         close (x);
+    //     }
 
-    // char  command[] = {'.', '/', 'p', 'r', 'o', 'x', 'y', '\0'};
-    // char * argument_list[] = {command, NULL};
-    // int execvp_status = execvp(command, argument_list);
-    // if(execvp_status == -1) {
-    //     printf("Process did not terminate correctly\n");
-    //     exit(1);
-    // }
-
-    // if(pid != 0) {
-    //     exit(EXIT_SUCCESS);
-    // }
-
-    // int dev_null_fd = open("/dev/null", O_RDWR);
-    // if (dev_null_fd  == -1) {
-    //     perror("Error");
-    //     exit(EXIT_FAILURE);
-    // }
-
-    // int ret_in = dup2(dev_null_fd, 0);
-    // int ret_out = dup2(dev_null_fd, 1);
-    // int ret_err = dup2(dev_null_fd, 2);
-
-    // close(0);
-    // close(1);
-    // close(2);
-        /* An error occurred */
-    if (pid < 0){
-        perror("pid < 0");
-        exit(EXIT_FAILURE);
-    }    
-    else if(pid == 0){
-        /* On success: The child process becomes session leader */
-        if (setsid() < 0)
-        exit(EXIT_FAILURE);
-        /* Catch, ignore and handle signals */
-        /*TODO: Implement a working signal handler */
-        signal(SIGHUP, SIG_IGN);
-        /* Fork off for the second time*/
-        pid = fork();
-        if(pid < 0){
-            perror("pid < 0");
-            exit(EXIT_FAILURE);
-        }
-          /* Set new file permissions */
-        umask(0);
-        /* Change the working directory to the root directory */
-        /* or another appropriated directory */
-        chdir("/");
-
-        /* Close all open file descriptors */
-        int x;
-        for (x = sysconf(_SC_OPEN_MAX); x>=0; x--)
-        {
-            close (x);
-        }
-
-        /* Open the log file */
-        openlog ("firstdaemon", LOG_PID, LOG_DAEMON);
-    }     
+    //     /* Open the log file */
+    //     openlog ("firstdaemon", LOG_PID, LOG_DAEMON);
+    // }     
     
-    else {
-        exit(EXIT_SUCCESS);
-    }
-
+    // else {
+    //     exit(EXIT_SUCCESS);
+    // }
     
 }
 
@@ -148,21 +104,21 @@ void *get_in_addr(struct sockaddr *sa)
     return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
-string getThreadID() {
-    auto myid = this_thread::get_id();
-    stringstream ss;
-    ss << myid;
-    return ss.str();
-}
+// string getThreadID() {
+//     auto myid = this_thread::get_id();
+//     stringstream ss;
+//     ss << myid;
+//     return ss.str();
+// }
 
 void LOG(string msg) {
     mtx.lock();
-    cout << msg;
+    // cout << msg;
     logFile << msg << endl;
     mtx.unlock();
 }
 
-void handle_connect(int server_fd, int client_fd, Parser * input, string content_from_client){
+void handle_connect(int server_fd, int client_fd, Parser * input, string content_from_client, int _id){
     string str = "HTTP/1.1 200 OK\r\n\r\n";
     send(client_fd, "HTTP/1.1 200 OK\r\n\r\n", 21, 0);
     fd_set master;    // master file descriptor list
@@ -201,7 +157,7 @@ void handle_connect(int server_fd, int client_fd, Parser * input, string content
                 string str(buff);
                 // cout << "I received: " << buff << "\n" << endl;
                 if (len <= 0) {
-                    LOG(getThreadID() + ": Tunnel closed\n");
+                    LOG(to_string(_id) + ": Tunnel closed\n");
                     return;
                 }
                 else {
@@ -210,7 +166,7 @@ void handle_connect(int server_fd, int client_fd, Parser * input, string content
                         int num = send(fd[1 - i], buff + byteSent, len - byteSent, 0);
                         byteSent += num;
                         if(num <= 0) {
-                            LOG(getThreadID() + ": Tunnel closed");
+                            LOG(to_string(_id) + ": Tunnel closed\n");
                             return;
                         }
                     }while(byteSent < len);
@@ -221,9 +177,6 @@ void handle_connect(int server_fd, int client_fd, Parser * input, string content
     }
 
 }
-
-
-
 
 
 
@@ -257,6 +210,7 @@ pair<string, string> RECEIVE(int server_fd, int client_fd) {
     }
     start += 2;
     header = str_from_server.substr(0, start);
+    cout << header << endl;
     // cout << header << endl;
     response->setArguments(header, "Response");
     memset(currBuff, 0, sizeof(currBuff));
@@ -268,14 +222,14 @@ pair<string, string> RECEIVE(int server_fd, int client_fd) {
             int bytes = 0;
             bytes = recv(server_fd, currBuff, sizeof(currBuff), 0);
             content.append(currBuff);
-            // strcat(body, currBuff);
-            cout << bytes << "    " << string(currBuff).substr(0, 3) << endl;
+            strcat(body, currBuff);
+            // cout << bytes << "    " << string(currBuff).substr(0, 3) << endl;
             if(string(body).find("0\r\n\r\n") != string::npos ){
                 break;
             }
         }
         // content.append(string(body));
-        cout << content.size() << endl;
+        // cout << content.size() << endl;
     } 
     else if(response->content_length != "") {
         content = str_from_server.substr(start);
@@ -326,7 +280,7 @@ void remove_from_cache(map<string, pair<pair<string, string>, pair<time_t, time_
 
 
 //do not need str_from_client           <url, <<header, content>, <input_time, max_age>>>
-void handle_get(int server_fd, int client_fd, Parser * request, string str_from_client, map<string, pair<pair<string, string>, pair<time_t, time_t> > > &cache){
+void handle_get(int server_fd, int client_fd, Parser * request, string str_from_client, map<string, pair<pair<string, string>, pair<time_t, time_t> > > &cache, int _id){
     // remove_from_cache(cache);
     //This is the key of the cache
     string url = request->url;
@@ -335,14 +289,14 @@ void handle_get(int server_fd, int client_fd, Parser * request, string str_from_
     mtx.lock();
     if(cache.find(url) == cache.end()) {                    //no such url in map, need to get from server and store the response into cache
         mtx.unlock();
-        LOG(getThreadID() + ": not in cache\n");
+        LOG(to_string(_id) + ": not in cache\n");
         pair<string, string> header_content_pair;           //the header-content string pair of the response from server
         string serverResponse;
         //send the data to server
         if (send(server_fd, str_from_client.c_str(), str_from_client.size(), 0) == -1) {
             perror("send");
         }
-        LOG(getThreadID() + ": Requesting \"" + request->method + " " + request->url + " " + request->http_version + "\" from " + request->host + "\n");
+        LOG(to_string(_id) + ": Requesting \"" + request->method + " " + request->url + " " + request->http_version + "\" from " + request->host + "\n");
         //receive from server, need to use a seperate function to get the response
         header_content_pair = RECEIVE(server_fd, client_fd);
         
@@ -352,11 +306,20 @@ void handle_get(int server_fd, int client_fd, Parser * request, string str_from_
         serverResponse.append(header_content_pair.second);
         //parse the response header
         response->setArguments(header_content_pair.first, "Response");
-        LOG(getThreadID() + ": Received \"" + response->http_version + " " + response->status_code + " " + response->status_msg + "\" from " + request->url + "\n");
-        if(response->status_code != "200" || response->no_store) {
-            LOG(getThreadID() + ": not cacheable because " + response->status_code + "\n");
+        LOG(to_string(_id) + ": Received \"" + response->http_version + " " + response->status_code + " " + response->status_msg + "\" from " + request->url + "\n");
+        // cout << header_content_pair.first << endl;
+        if(response->status_code != "200" || response->no_store || response->expires == "-1") {
+            if (response->no_store) {
+                LOG(to_string(_id) + ": not cacheable because NO STORE" + "\n");
+            }
+            if (response->status_code != "200") {
+                LOG(to_string(_id) + ": not cacheable because " + response->status_code + "\n");
+            }
+            else {
+                LOG(to_string(_id) + ": not cacheable because of expire time" + "\n");
+            }
             SEND(client_fd, serverResponse.length() + 1, serverResponse.c_str());
-            LOG(getThreadID() + ": Responding \"" + response->http_version + " " + response->status_code + " " + response->status_msg + "\n");
+            LOG(to_string(_id) + ": Responding \"" + response->http_version + " " + response->status_code + " " + response->status_msg + "\n");
             return;
         }
         struct tm entry_time; 
@@ -378,7 +341,8 @@ void handle_get(int server_fd, int client_fd, Parser * request, string str_from_
         mtx.lock();
         cache.insert(make_pair(url, make_pair(header_content_pair, make_pair(mktime(&entry_time), mktime(&entry_age)))));    //mktime(): struct tm ==>  time_t
         mtx.unlock();
-            // cout << "Return from handle" << endl;
+        LOG(to_string(_id) + ": Responding \"" + response->http_version + " " + response->status_code + " " + response->status_msg + "\n");
+        LOG(to_string(_id) + ": Cached, expires at: " + asctime(gmtime(&cache[url].second.second)));
     }
 
 
@@ -393,6 +357,7 @@ void handle_get(int server_fd, int client_fd, Parser * request, string str_from_
         pair<pair<string, string>, pair<time_t, time_t>> current_responseTime_pair = cache[url];
         //max_age - current_time
         Parser * cached_header = new Parser();
+        cached_header->setArguments(current_responseTime_pair.first.first, "Response");
         //Mon, 18 Jul 2016 16:06:00 GMT 
         if(cached_header->expires == "") {
             expired_time = *current_time;
@@ -401,15 +366,25 @@ void handle_get(int server_fd, int client_fd, Parser * request, string str_from_
         else {
             strptime(cached_header->expires.c_str(), "%a, %d %b %Y %H:%M:%S", &expired_time);
             expired_time.tm_hour -= 5;
-            cached_header->setArguments(current_responseTime_pair.first.first, "Response"); 
+            // cached_header->setArguments(current_responseTime_pair.first.first, "Response"); 
         }       
         bool must_revalidate = cached_header->no_cache;
-        cout <<"EXPIRES AT: " << asctime(&expired_time);
 
 
+        int exp1 = difftime(current_responseTime_pair.second.second, mktime(current_time));
+        int exp2 = difftime(mktime(&expired_time), mktime(current_time));
 
 
-        if(must_revalidate || (difftime(current_responseTime_pair.second.second, mktime(current_time)) <= 0) || (difftime(mktime(&expired_time), mktime(current_time)) <= 0) ) {           //for revalidation
+        if(must_revalidate || (difftime(current_responseTime_pair.second.second, mktime(current_time)) <= 0) || (difftime(mktime(&expired_time), mktime(current_time)) <= 0) ) {           //for revalidation  
+            if(exp1 < 0 && exp2 < 0) {
+                if(difftime(mktime(&expired_time), current_responseTime_pair.second.second) <= 0) {
+                    LOG(to_string(_id) + ": in cache, but expired at " + asctime(gmtime(&current_responseTime_pair.second.second)));
+                }
+                else {
+                    LOG(to_string(_id) + ": in cache, but expired at " + asctime(&expired_time));
+                }
+            } 
+            LOG(to_string(_id) + ": in cache, requires validation\n");      
             struct tm* expiredAt;
             if(difftime(mktime(&expired_time), current_responseTime_pair.second.second) < 0 ) {
                 expiredAt = &expired_time;
@@ -417,7 +392,7 @@ void handle_get(int server_fd, int client_fd, Parser * request, string str_from_
             else {
                 expiredAt = gmtime(&current_responseTime_pair.second.second);
             }
-            LOG(getThreadID() + ": in cache, but expired at " + asctime(expiredAt));
+            // LOG(to_string(_id) + ": in cache, but expired at " + asctime(expiredAt) + "\n");
             // cout << "Need validation!!" << endl;
             string stringToSend;
             //append the header
@@ -434,16 +409,16 @@ void handle_get(int server_fd, int client_fd, Parser * request, string str_from_
                 // cout << "append date" << endl;
                 stringToSend.append("If-Modified-Since: " + cached_header->last_modified + "\r\n");
             }
-            LOG(getThreadID() + ": in cache, requires validation\n");
+            
             
             stringToSend.append("\r\n"); 
             // cout << stringToSend << endl;
             send(server_fd, stringToSend.c_str(), stringToSend.length(), 0);
-            LOG(getThreadID() + ": Requesting \"" + request->method + " " + request->url + " " + request->http_version + "\" from " + request->host + "\n");
+            LOG(to_string(_id) + ": Requesting \"" + request->method + " " + request->url + " " + request->http_version + "\" from " + request->host + "\n");
             pair<string, string> header_content_pair = RECEIVE(server_fd, client_fd);
             Parser * header = new Parser();
             header->setArguments(header_content_pair.first, "Response");
-            LOG(getThreadID() + ": Received \"" + header->http_version + " " + header->status_code + " " + header->status_msg + "\" from " +request->host + "\n");
+            LOG(to_string(_id) + ": Received \"" + header->http_version + " " + header->status_code + " " + header->status_msg + "\" from " +request->host + "\n");
             // cout << "Status code: " << header->status_code << endl;
             if(header->status_code == "200") {                        //the response has been updated
                 //get the current time
@@ -466,24 +441,22 @@ void handle_get(int server_fd, int client_fd, Parser * request, string str_from_
 
             }
             else if(header->status_code == "304") {                   //the response has not been updated
-                LOG(getThreadID() + ": cached no need to update" + "\n");
+                LOG(to_string(_id) + ": cached no need to update" + "\n");
                 //donothing
             }
             else {
-                LOG(getThreadID() + ":  not cacheable because " + header->status_code + "\n");
+                LOG(to_string(_id) + ":  not cacheable because " + header->status_code + "\n");
                 string str_to_send = header_content_pair.first + header_content_pair.second;
                 SEND(client_fd, str_to_send.length() + 1, str_to_send.c_str());
-                LOG(getThreadID() + ": Responding \"" + header->http_version + " " + header->status_code + " " + header->status_msg + "\n");
+                LOG(to_string(_id) + ": Responding \"" + header->http_version + " " + header->status_code + " " + header->status_msg + "\n");
                 return;
             }
-            LOG(getThreadID() + ": Responding \"" + header->http_version + " " + header->status_code + " " + header->status_msg + "\n");
+            LOG(to_string(_id) + ": Responding \"" + header->http_version + " " + header->status_code + " " + header->status_msg + "\n");
+            LOG(to_string(_id) + ": Cached, expires at: " + asctime(gmtime(&cache[url].second.second)));
         }
         else {
-            LOG(getThreadID() + ": in cache, valid\n");
-            
-            //non-stale, directly send to the client
-            //get the string of response to sent
-            //do nothing but the log
+            LOG(to_string(_id) + ": in cache, valid\n");
+            LOG(to_string(_id) + ": Responding \"HTTP/1.1 200 OK\"" + "\n");
         }
     }
 
@@ -495,7 +468,8 @@ void handle_get(int server_fd, int client_fd, Parser * request, string str_from_
 
 }
 
-void handle_post(int server_fd, int client_fd, Parser * input, string str_from_client){
+void handle_post(int server_fd, int client_fd, Parser * input, string str_from_client, int _id){
+    LOG(to_string(_id) + ": Requesting \"" + input->method + " " + input->url + " " + input->http_version + "\" from " + input->host + "\n");
     if(send(server_fd, str_from_client.c_str(), str_from_client.size(), 0) == -1){
         perror("send");
     }
@@ -503,8 +477,12 @@ void handle_post(int server_fd, int client_fd, Parser * input, string str_from_c
     string serverResponse;
     //receive from server, need to use a seperate function to get the response
     header_content_pair = RECEIVE(server_fd, client_fd);
+    Parser * responseHeader = new Parser();
+    responseHeader->setArguments(header_content_pair.first, "Response");
+    LOG(to_string(_id) + ": Received \"" + responseHeader->http_version + " " + responseHeader->status_code + " " + responseHeader->status_msg + "\" from " + input->host + "\n");
     serverResponse.append(header_content_pair.first);
     serverResponse.append(header_content_pair.second);
+    LOG(to_string(_id) + ": Responding \"" + responseHeader->http_version + " " + responseHeader->status_code + " " + responseHeader->status_msg + "\n");
     send(client_fd, serverResponse.c_str(), serverResponse.length(), 0);
     cout << "POST finished!" << endl;
 
@@ -585,6 +563,7 @@ int setUpServer() {
     int yes=1;
     int rv;
 
+
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
@@ -650,20 +629,20 @@ int setUpServer() {
 
 
 
-void handleThread(int client_fd, int server_fd, map<string, pair<pair<string, string>, pair<time_t, time_t> > > &cache, Parser * input, string content_from_client, const char * ip_addr) {
+void handleThread(int client_fd, int server_fd, map<string, pair<pair<string, string>, pair<time_t, time_t> > > &cache, Parser * input, string content_from_client, const char * ip_addr, int _id) {
     string response_content = "";
     struct tm * nowTime = getCurrentTime();
 
-    string log = getThreadID() + ": \"" + input->method + " " + input->url + " " + input->http_version + "\" from " + ip_addr + " @ " + asctime(nowTime);
+    string log = to_string(_id) + ": \"" + input->method + " " + input->url + " " + input->http_version + "\" from " + ip_addr + " @ " + asctime(nowTime);
     LOG(log);
     try
     {
         if(input->method == "GET"){
-            handle_get(server_fd, client_fd, input, content_from_client, cache);
+            handle_get(server_fd, client_fd, input, content_from_client, cache, _id);
         } else if(input->method == "CONNECT"){
-            handle_connect(server_fd, client_fd, input, content_from_client);
+            handle_connect(server_fd, client_fd, input, content_from_client, _id);
         } else if(input->method == "POST"){
-            handle_post(server_fd, client_fd, input, content_from_client);
+            handle_post(server_fd, client_fd, input, content_from_client, _id);
         } 
     }
     catch(const std::exception& e)
@@ -682,7 +661,7 @@ void handleThread(int client_fd, int server_fd, map<string, pair<pair<string, st
 
 int main(void)
 {
-    skeleton_daemon();
+    // skeleton_daemon();
     int listen_sockfd, new_fd;  // listen to client on listen_sockfd, new connection on new_fd, talk to server on send_sockfd
     int send_sockfd;
     struct sockaddr_storage their_addr; // connector's address information
@@ -690,7 +669,7 @@ int main(void)
     char s[INET6_ADDRSTRLEN];
     map<string, pair<pair<string, string>, pair<time_t, time_t> > > cache;  //<url, <<header, content>, <input_time, max_time>>>
     listen_sockfd = setUpServer();
-
+    int _id = 0;
 
 
     while(1) {  // main accept() loop
@@ -725,12 +704,14 @@ int main(void)
         string content_from_client = buf_from_client;
         Parser * header = new Parser();
 
-        header->setArguments(content_from_client, "Request");       
+        header->setArguments(content_from_client, "Request");      
+        cout << header->http_version << endl; 
 
         //set up socket and connect to the server
         send_sockfd = connectToServer(header->host.c_str(), header->port_number.c_str());         
 
-        thread(handleThread, new_fd, send_sockfd, ref(cache), header, content_from_client, s).detach();
+        thread(handleThread, new_fd, send_sockfd, ref(cache), header, content_from_client, s, _id).detach();
+        _id++;
         // myThread.detach();
     }
     close(listen_sockfd);
